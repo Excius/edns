@@ -1,0 +1,1 @@
+FROP TABLE notification_deliveries;

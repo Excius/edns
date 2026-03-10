@@ -5,11 +5,19 @@
 
 # Build outputs
 bin/
+api-service/bin/
+worker-service/bin/
 dist/
 
 # Temporary files
 tmp/
+api-service/tmp/
+worker-service/tmp/
 *.out
+*.log
+
+# Configuration files
+api-service/configs/config.yaml
 
 # IDE/Editor
 .vscode/

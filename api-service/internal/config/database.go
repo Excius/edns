@@ -2,18 +2,34 @@ package config
 
 import (
 	"context"
-	"log"
+	"notification-system/api/pkg/logger"
 
-	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewPostgres() *pgx.Conn {
-	conn, err := pgx.Connect(context.Background(), "postgres://admin:admin@localhost:5432/notifications")
+func NewPostgresPool(cfg *Config) *pgxpool.Pool {
+	ctx := context.Background()
+
+	config, err := pgxpool.ParseConfig(cfg.DB.URL)
 	if err != nil {
-		log.Fatal("Unable to connect to database:", err)
+		logger.Log.Error("Unable to parse database URL:", zap.Error(err))
 	}
 
-	log.Println("Connected to PostgreSQL")
+	config.MaxConns = cfg.DB.MAXConns
+	config.MinConns = cfg.DB.MINConns
 
-	return conn
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		logger.Log.Error("Unable to create connection pool:", zap.Error(err))
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		logger.Log.Error("Unable to connect to database:", zap.Error(err))
+	}
+
+	logger.Log.Info("Successfully connected to the database")
+
+	return pool
 }

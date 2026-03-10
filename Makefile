@@ -1,4 +1,5 @@
 APP_NAME=notification-api
+DB_URL=postgres://admin:admin@localhost:5432/notifications?sslmode=disable
 
 run-api:
 	cd api-service && go run cmd/server/main.go
@@ -23,6 +24,15 @@ docker-up-dev:
 
 docker-down-dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+migrate-up:
+	migrate -path migrations -database "$(DB_URL)" up
+
+migrate-down:
+	migrate -path migrations -database "$(DB_URL)" down 1
+
+migrate-create:
+	migrate create -ext sql -dir migrations $(name)
 
 deps:
 	cd api-service && do mod tidy

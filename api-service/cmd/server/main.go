@@ -1,12 +1,23 @@
 package main
 
 import (
-	"log"
-
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
+	"notification-system/api/internal/config"
+	"notification-system/api/pkg/logger"
 )
 
 func main() {
+
+	cfg := config.LoadConfig()
+
+	logger.Init(cfg.App.Env)
+	defer logger.Log.Sync()
+
+	db := config.NewPostgresPool(cfg)
+	defer db.Close()
+
 	r := gin.Default()
 
 	r.GET("/health", func(c *gin.Context) {
@@ -15,8 +26,8 @@ func main() {
 		})
 	})
 
-	log.Println("Server running on localhost:8080")
+	logger.Log.Info("Server started", zap.String("port", cfg.Server.Port))
 
-	r.Run(":8080")
+	r.Run(":" + cfg.Server.Port)
 
 }
