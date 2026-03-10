@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: ./api-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./api-service:/app
+    working_dir: /app
+    command: air
+    ports:
+      - "8080:8080"
+  
+  worker:
+    build:
+      context: ./worker-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./worker-service:/app
+    working_dir: /app
+    command: air
+
+volumes:
+  postgres_data:
