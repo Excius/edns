@@ -5,7 +5,7 @@ CREATE TABLE notification_deliveries (
   status VARCHAR(50) DEFAULT 'pending',
   retry_count INT DEFAULT 0,
   last_attempt_at TIMESTAMP,
-  delivery_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
   CONSTRAINT fk_notification
     FOREIGN KEY(notification_id) 

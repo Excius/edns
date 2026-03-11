@@ -1,1 +1,1 @@
-FROP TABLE notification_deliveries;
+FROM TABLE notification_deliveries;
