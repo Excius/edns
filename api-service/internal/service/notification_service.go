@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"notification-system/api/internal/models"
 	"notification-system/api/internal/repository"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -26,7 +28,15 @@ func NewNotificationService(
 	}
 }
 
-func (s *NotificationService) CreateNotification(ctx context.Context, userID uuid.UUID, message string, channels []string) (*models.Notitication, error) {
+func (s *NotificationService) GetNotificationByID(ctx context.Context, id uuid.UUID) (*models.Notification, error) {
+	return s.notificationRepo.GetNotificationByID(ctx, id)
+}
+
+func (s *NotificationService) GetDeliveriesByNotificatoinID(ctx context.Context, notificationID uuid.UUID) ([]models.NotificationDelivery, error) {
+	return s.deliveryRepo.GetDeliveriesByNotificatoinID(ctx, notificationID)
+}
+
+func (s *NotificationService) CreateNotification(ctx context.Context, userID uuid.UUID, message string, channels []string) (*models.Notification, error) {
 
 	// Validate user exists
 	_, err := s.userRepo.GetUserByID(ctx, userID)
@@ -34,8 +44,25 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 		return nil, err
 	}
 
+	// Validate channels
+	var result []string
+	seen := map[string]struct{}{}
+
+	for _, ch := range channels {
+		ch = strings.ToLower(strings.TrimSpace(ch))
+
+		if !models.IsValidChannel(ch) {
+			return nil, errors.New("invalid channel")
+		}
+
+		if _, exists := seen[ch]; !exists {
+			seen[ch] = struct{}{}
+			result = append(result, ch)
+		}
+	}
+
 	// Create notification
-	notification := &models.Notitication{
+	notification := &models.Notification{
 		UserID:  userID,
 		Message: message,
 		Status:  models.StatusPending,
@@ -47,7 +74,7 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 	}
 
 	// Create delivery records for each channel
-	for _, channel := range channels {
+	for _, channel := range result {
 
 		delivery := &models.NotificationDelivery{
 			NotificationID: notification.ID,

@@ -1,16 +1,18 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
+	"notification-system/api/internal/app"
 	"notification-system/api/internal/config"
-	"notification-system/api/internal/handlers"
-	"notification-system/api/internal/repository"
-	"notification-system/api/internal/service"
 	"notification-system/api/pkg/logger"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -23,33 +25,37 @@ func main() {
 	db := config.NewPostgresPool(cfg)
 	defer db.Close()
 
-	// Repositories
-	userRepo := repository.NewUserRepository(db)
-	notificationRepo := repository.NewNotificationRepository(db)
-	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
+	application := app.NewApp(cfg, db)
 
-	// Services
-	userService := service.NewUserService(userRepo)
-	notificationService := service.NewNotificationService(userRepo, notificationRepo, deliveryRepo)
+	server := &http.Server{
+		Addr:    ":" + cfg.Server.Port,
+		Handler: application.Router,
+	}
 
-	// Handlers
-	userHandler := handlers.NewUserHandler(userService)
-	notificationHandler := handlers.NewNotificationHandler(notificationService)
+	go func() {
+		logger.Log.Info("Starting server", zap.String("port", cfg.Server.Port))
 
-	// Router
-	r := gin.Default()
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Log.Fatal("Server failed to start", zap.Error(err))
+		}
+	}()
 
-	api := r.Group("/api")
+	// Listen for shutdown signals and gracefully shut down the server
+	quit := make(chan os.Signal, 1)
 
-	api.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	api.POST("/users", userHandler.CreateUser)
-	api.POST("/notifications", notificationHandler.CreateNotification)
+	<-quit
 
-	logger.Log.Info("Server started", zap.String("port", cfg.Server.Port))
+	logger.Log.Info("Shutting down server...")
 
-	r.Run(":" + cfg.Server.Port)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Log.Fatal("Server forced to shutdown", zap.Error(err))
+	}
+
+	logger.Log.Info("Server exited gracefully")
 
 }

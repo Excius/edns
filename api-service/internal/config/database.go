@@ -4,9 +4,8 @@ import (
 	"context"
 	"notification-system/api/pkg/logger"
 
-	"go.uber.org/zap"
-
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
 func NewPostgresPool(cfg *Config) *pgxpool.Pool {

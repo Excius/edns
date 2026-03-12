@@ -18,22 +18,24 @@ func NewNotificationRepository(db *pgxpool.Pool) *NotificationRepository {
 	}
 }
 
-func (r *NotificationRepository) CreateNotification(ctx context.Context, notification *models.Notitication) error {
+func (r *NotificationRepository) CreateNotification(ctx context.Context, notification *models.Notification) error {
 	query := `INSERT INTO notifications (user_id, message, status)
 	VALUES ($1, $2, $3)
-	RETURNING id, created_at`
+	RETURNING id, created_at
+	`
 
 	return r.db.QueryRow(ctx, query, notification.UserID, notification.Message, notification.Status).Scan(&notification.ID, &notification.CreatedAt)
 }
 
-func (r *NotificationRepository) GetNotification(ctx context.Context, id uuid.UUID) (*models.Notitication, error) {
-	query := `SELCT id, user_id, message, status, created_at
+func (r *NotificationRepository) GetNotificationByID(ctx context.Context, id uuid.UUID) (*models.Notification, error) {
+	query := `SELECT id, user_id, message, status, created_at
 	FROM notifications
-	WHERE user_id = $1`
+	WHERE id = $1
+	`
 
 	row := r.db.QueryRow(ctx, query, id)
 
-	var n models.Notitication
+	var n models.Notification
 
 	err := row.Scan(&n.ID, &n.UserID, &n.Message, &n.Status, &n.CreatedAt)
 	if err != nil {
@@ -42,11 +44,31 @@ func (r *NotificationRepository) GetNotification(ctx context.Context, id uuid.UU
 
 	return &n, nil
 }
-func (r *NotificationRepository) ListUserNotifications(ctx context.Context, userID uuid.UUID) ([]models.Notitication, error) {
+
+func (r *NotificationRepository) GetNotificationByUserID(ctx context.Context, id uuid.UUID) (*models.Notification, error) {
 	query := `SELECT id, user_id, message, status, created_at
 	FROM notifications
 	WHERE user_id = $1
-	ORDER BY created_at DESC`
+	`
+
+	row := r.db.QueryRow(ctx, query, id)
+
+	var n models.Notification
+
+	err := row.Scan(&n.ID, &n.UserID, &n.Message, &n.Status, &n.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &n, nil
+}
+
+func (r *NotificationRepository) ListUserNotifications(ctx context.Context, userID uuid.UUID) ([]models.Notification, error) {
+	query := `SELECT id, user_id, message, status, created_at
+	FROM notifications
+	WHERE user_id = $1
+	ORDER BY created_at DESC
+	`
 
 	rows, err := r.db.Query(ctx, query, userID)
 	if err != nil {
@@ -54,10 +76,10 @@ func (r *NotificationRepository) ListUserNotifications(ctx context.Context, user
 	}
 	defer rows.Close()
 
-	var notifications []models.Notitication
+	var notifications []models.Notification
 
 	for rows.Next() {
-		var n models.Notitication
+		var n models.Notification
 		err := rows.Scan(&n.ID, &n.UserID, &n.Message, &n.Status, &n.CreatedAt)
 		if err != nil {
 			return nil, err

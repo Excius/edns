@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Notitication struct {
+type Notification struct {
 	ID        uuid.UUID `json:"id"`
 	UserID    uuid.UUID `json:"user_id"`
 	Message   string    `json:"message"`
