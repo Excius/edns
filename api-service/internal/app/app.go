@@ -23,7 +23,7 @@ func NewApp(cfg *config.Config, db *pgxpool.Pool, redisClient *redis.Client) *Ap
 	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
 
 	// Queue
-	stream := queue.NewRedisStream(redisClient, "notifications_stream")
+	stream := queue.NewRedisStream(redisClient, cfg.Redis.Stream)
 
 	// Services
 	userService := service.NewUserService(userRepo, notificationRepo)

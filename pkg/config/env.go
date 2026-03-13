@@ -30,7 +30,10 @@ func LoadConfig() *Config {
 			MINConns: viper.GetInt32("db.min_conns"),
 		},
 		Redis: RedisConfig{
-			Addr: viper.GetString("redis.addr"),
+			Addr:     viper.GetString("redis.addr"),
+			Password: viper.GetString("redis.password"),
+			DB:       viper.GetInt("redis.db"),
+			Stream:   viper.GetString("redis.stream"),
 		},
 		App: App{
 			Env: viper.GetString("app.env"),
