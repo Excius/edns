@@ -1,12 +1,12 @@
-FROM golang:1.25.8-alpine3.23
+FROM golang:1.26.1-alpine3.23
 
 WORKDIR /app
 
-COPY ./go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-RUN go build -o worker ./cmd/worker
+RUN go build -o worker ./worker-service/cmd/worker
 
 CMD ["./worker"]

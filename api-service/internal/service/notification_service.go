@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"errors"
-	"notification-system/api/internal/models"
-	"notification-system/api/internal/repository"
 	"strings"
 
+	"github.com/excius/edns/pkg/models"
+	"github.com/excius/edns/pkg/queue"
+	"github.com/excius/edns/pkg/repository"
 	"github.com/google/uuid"
 )
 
@@ -14,17 +15,20 @@ type NotificationService struct {
 	userRepo         *repository.UserRepository
 	notificationRepo *repository.NotificationRepository
 	deliveryRepo     *repository.NotificationDeliveryRepository
+	queue            *queue.RedisStream
 }
 
 func NewNotificationService(
 	userRepo *repository.UserRepository,
 	notificationRepo *repository.NotificationRepository,
 	deliveryRepo *repository.NotificationDeliveryRepository,
+	queue *queue.RedisStream,
 ) *NotificationService {
 	return &NotificationService{
 		userRepo:         userRepo,
 		notificationRepo: notificationRepo,
 		deliveryRepo:     deliveryRepo,
+		queue:            queue,
 	}
 }
 
@@ -87,6 +91,15 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 			return nil, err
 		}
 
+	}
+
+	// Publish to Redis Stream for processing
+	err = s.queue.Publish(ctx, map[string]interface{}{
+		"notification_id": notification.ID.String(),
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return notification, nil

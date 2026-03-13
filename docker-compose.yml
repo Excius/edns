@@ -19,8 +19,8 @@ services:
   
   api:
     build:
-      context: ./api-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-service/Dockerfile
     container_name: edns_api
     ports:
       - "8080:8080"
@@ -30,8 +30,8 @@ services:
   
   worker:
     build:
-      context: ./worker-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: worker-service/Dockerfile
     container_name: edns_worker
     depends_on:
       - redis

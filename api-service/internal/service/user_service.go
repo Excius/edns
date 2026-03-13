@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"errors"
-	"notification-system/api/internal/models"
-	"notification-system/api/internal/repository"
 
+	"github.com/excius/edns/pkg/models"
+	"github.com/excius/edns/pkg/repository"
 	"github.com/google/uuid"
 )
 

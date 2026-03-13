@@ -1,22 +1,22 @@
 services:
   api:
     build:
-      context: ./api-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: api-service/Dockerfile.dev
     volumes:
-      - ./api-service:/app
-    working_dir: /app
+      - .:/app
+    working_dir: /app/api-service
     command: air
     ports:
       - "8080:8080"
   
   worker:
     build:
-      context: ./worker-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: worker-service/Dockerfile.dev
     volumes:
-      - ./worker-service:/app
-    working_dir: /app
+      - .:/app
+    working_dir: /app/worker-service
     command: air
 
 volumes:

@@ -2,8 +2,9 @@ package service
 
 import (
 	"context"
-	"notification-system/api/internal/models"
-	"notification-system/api/internal/repository"
+
+	"github.com/excius/edns/pkg/models"
+	"github.com/excius/edns/pkg/repository"
 )
 
 type DeliveryService struct {

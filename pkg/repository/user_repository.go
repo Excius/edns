@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
-	"notification-system/api/internal/models"
 
+	"github.com/excius/edns/pkg/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

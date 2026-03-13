@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"notification-system/api/internal/app"
-	"notification-system/api/internal/config"
-	"notification-system/api/pkg/logger"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/excius/edns/api-service/internal/app"
+	"github.com/excius/edns/pkg/config"
+	"github.com/excius/edns/pkg/logger"
 	"go.uber.org/zap"
 )
 
@@ -25,7 +25,9 @@ func main() {
 	db := config.NewPostgresPool(cfg)
 	defer db.Close()
 
-	application := app.NewApp(cfg, db)
+	redisClient := config.NewRedisClient(cfg)
+
+	application := app.NewApp(cfg, db, redisClient)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,

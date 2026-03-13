@@ -1,29 +1,33 @@
 package app
 
 import (
-	"notification-system/api/internal/config"
-	"notification-system/api/internal/handlers"
-	"notification-system/api/internal/repository"
-	"notification-system/api/internal/service"
-
+	"github.com/excius/edns/api-service/internal/handlers"
+	"github.com/excius/edns/api-service/internal/service"
+	"github.com/excius/edns/pkg/config"
+	"github.com/excius/edns/pkg/queue"
+	"github.com/excius/edns/pkg/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 type App struct {
 	Router *gin.Engine
 }
 
-func NewApp(cfg *config.Config, db *pgxpool.Pool) *App {
+func NewApp(cfg *config.Config, db *pgxpool.Pool, redisClient *redis.Client) *App {
 
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
 	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
 
+	// Queue
+	stream := queue.NewRedisStream(redisClient, "notifications_stream")
+
 	// Services
 	userService := service.NewUserService(userRepo, notificationRepo)
-	notificationService := service.NewNotificationService(userRepo, notificationRepo, deliveryRepo)
+	notificationService := service.NewNotificationService(userRepo, notificationRepo, deliveryRepo, stream)
 
 	// Handlers
 	userHandler := handlers.NewUserHandler(userService)

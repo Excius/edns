@@ -10,6 +10,8 @@ func LoadConfig() *Config {
 
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
+
+	viper.AddConfigPath("../configs")
 	viper.AddConfigPath("./configs")
 	viper.AutomaticEnv()
 

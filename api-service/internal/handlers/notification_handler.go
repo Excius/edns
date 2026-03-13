@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"net/http"
-	"notification-system/api/internal/dto"
-	"notification-system/api/internal/service"
 	"strings"
 
+	"github.com/excius/edns/api-service/internal/dto"
+	"github.com/excius/edns/api-service/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

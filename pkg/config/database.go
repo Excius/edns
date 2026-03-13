@@ -2,8 +2,8 @@ package config
 
 import (
 	"context"
-	"notification-system/api/pkg/logger"
 
+	"github.com/excius/edns/pkg/logger"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
