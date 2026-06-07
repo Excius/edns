@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/excius/edns/pkg/models"
-	"github.com/excius/edns/pkg/repository"
+	"github.com/excius/edns/internal/models"
+	"github.com/excius/edns/internal/repository"
 )
 
 type DeliveryService struct {

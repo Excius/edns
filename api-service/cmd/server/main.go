@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/excius/edns/api-service/internal/app"
-	"github.com/excius/edns/pkg/config"
-	"github.com/excius/edns/pkg/logger"
+	"github.com/excius/edns/internal/config"
+	"github.com/excius/edns/internal/logger"
 	"go.uber.org/zap"
 )
 
@@ -22,7 +22,7 @@ func main() {
 	logger.Init(cfg.App.Env)
 	defer logger.Log.Sync()
 
-	db := config.NewPostgresPool(cfg)
+	db := config.NewPostgresPool(cfg, logger.Log)
 	defer db.Close()
 
 	redisClient := config.NewRedisClient(cfg)

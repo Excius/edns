@@ -15,7 +15,7 @@ func NormalizeEmail(email string) (string, error) {
 		return "", errors.New("invalid email format")
 	}
 
-	loca := parts[0]
+	local := parts[0]
 	domain := parts[1]
 
 	asciiDomain, err := idna.Lookup.ToASCII(domain)
@@ -23,5 +23,5 @@ func NormalizeEmail(email string) (string, error) {
 		return "", errors.New("invalid email domain")
 	}
 
-	return loca + "@" + asciiDomain, nil
+	return local + "@" + asciiDomain, nil
 }

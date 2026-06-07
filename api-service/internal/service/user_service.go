@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 
-	"github.com/excius/edns/pkg/models"
-	"github.com/excius/edns/pkg/repository"
+	"github.com/excius/edns/internal/models"
+	"github.com/excius/edns/internal/repository"
 	"github.com/google/uuid"
 )
+
+var ErrUserExists = errors.New("service: user already exists")
 
 type UserService struct {
 	userRepo         *repository.UserRepository
@@ -41,7 +43,7 @@ func (s *UserService) CreateUser(ctx context.Context, email string) (*models.Use
 	}
 
 	if userExist {
-		return nil, errors.New("user already exists")
+		return nil, ErrUserExists
 	}
 
 	user := &models.User{

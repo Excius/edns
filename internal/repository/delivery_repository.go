@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/excius/edns/pkg/models"
+	"github.com/excius/edns/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -88,4 +88,14 @@ func (r *NotificationDeliveryRepository) GetByNotificationID(ctx context.Context
 	}
 
 	return deliveries, nil
+}
+
+func (r *NotificationDeliveryRepository) UpdateStatus(ctx context.Context, deliveryID uuid.UUID, status string) error {
+	query := `
+	UPDATE notification_deliveries
+	SET status = $1, last_attempt_at = NOW()
+	WHERE id = $2
+	`
+	_, err := r.db.Exec(ctx, query, status, deliveryID)
+	return err
 }

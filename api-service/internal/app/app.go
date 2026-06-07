@@ -3,9 +3,9 @@ package app
 import (
 	"github.com/excius/edns/api-service/internal/handlers"
 	"github.com/excius/edns/api-service/internal/service"
-	"github.com/excius/edns/pkg/config"
-	"github.com/excius/edns/pkg/queue"
-	"github.com/excius/edns/pkg/repository"
+	"github.com/excius/edns/internal/config"
+	"github.com/excius/edns/internal/queue"
+	"github.com/excius/edns/internal/repository"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"

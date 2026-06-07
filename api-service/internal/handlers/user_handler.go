@@ -5,7 +5,7 @@ import (
 
 	"github.com/excius/edns/api-service/internal/dto"
 	"github.com/excius/edns/api-service/internal/service"
-	"github.com/excius/edns/pkg/normalize"
+	"github.com/excius/edns/internal/normalize"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

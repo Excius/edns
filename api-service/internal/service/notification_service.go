@@ -5,11 +5,13 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/excius/edns/pkg/models"
-	"github.com/excius/edns/pkg/queue"
-	"github.com/excius/edns/pkg/repository"
+	"github.com/excius/edns/internal/models"
+	"github.com/excius/edns/internal/queue"
+	"github.com/excius/edns/internal/repository"
 	"github.com/google/uuid"
 )
+
+var ErrInvChan = errors.New("service: invalid channel")
 
 type NotificationService struct {
 	userRepo         *repository.UserRepository
@@ -56,7 +58,7 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 		ch = strings.ToLower(strings.TrimSpace(ch))
 
 		if !models.IsValidChannel(ch) {
-			return nil, errors.New("invalid channel")
+			return nil, ErrInvChan
 		}
 
 		if _, exists := seen[ch]; !exists {

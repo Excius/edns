@@ -12,9 +12,7 @@ dist/
 
 # Temporary files
 tmp/
-api-service/tmp/
-worker-service/tmp/
-websocket-service/tmp/
+**/tmp/
 *.out
 *.log
 
@@ -42,4 +40,3 @@ go.sum
 *.exe
 *.dll
 *.so
-

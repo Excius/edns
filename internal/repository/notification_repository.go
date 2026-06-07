@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/excius/edns/pkg/models"
+	"github.com/excius/edns/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -88,4 +88,13 @@ func (r *NotificationRepository) ListUserNotifications(ctx context.Context, user
 	}
 
 	return notifications, nil
+}
+
+func (r *NotificationRepository) UpdateNotificationStatus(ctx context.Context, id uuid.UUID, status string) error {
+	query := `UPDATE notifications
+	SET status = $1
+	WHERE id = $2
+	`
+	_, err := r.db.Exec(ctx, query, status, id)
+	return err
 }

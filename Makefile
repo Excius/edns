@@ -8,6 +8,9 @@ run-api:
 build-api:
 	go build -o bin/$(APP_NAME) api-service/cmd/server/main.go
 
+build-worker:
+	go build -o bin/$(APP_NAME)-worker worker-service/cmd/worker/main.go
+
 test:
 	go test ./...
 

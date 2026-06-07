@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/excius/edns/pkg/models"
+	"github.com/excius/edns/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -25,7 +25,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) erro
 	RETURNING id, created_at
 	`
 
-	return r.db.QueryRow(ctx, query, user.Email).Scan(&user.ID, &user.CretedAt)
+	return r.db.QueryRow(ctx, query, user.Email).Scan(&user.ID, &user.CreatedAt)
 }
 
 func (r *UserRepository) UserExists(ctx context.Context, email string) (bool, error) {
@@ -55,7 +55,7 @@ func (r *UserRepository) GetUserByEmail(ctx context.Context, email string) (*mod
 
 	var user models.User
 
-	err := r.db.QueryRow(ctx, query, email).Scan(&user.ID, &user.Email, &user.CretedAt)
+	err := r.db.QueryRow(ctx, query, email).Scan(&user.ID, &user.Email, &user.CreatedAt)
 
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*models
 
 	var user models.User
 
-	err := r.db.QueryRow(ctx, query, id).Scan(&user.ID, &user.Email, &user.CretedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&user.ID, &user.Email, &user.CreatedAt)
 
 	if err != nil {
 		return nil, err

@@ -18,7 +18,7 @@ func NewRedisStream(client *redis.Client, stream string) *RedisStream {
 	}
 }
 
-func (r *RedisStream) Publish(ctx context.Context, values map[string]interface{}) error {
+func (r *RedisStream) Publish(ctx context.Context, values map[string]any) error {
 
 	return r.client.XAdd(ctx, &redis.XAddArgs{
 		Stream: r.stream,
