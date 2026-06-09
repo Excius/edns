@@ -5,8 +5,8 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
-	"time"
 
 	"github.com/excius/edns/internal/config"
 	"github.com/excius/edns/internal/logger"
@@ -17,13 +17,17 @@ import (
 )
 
 func main() {
-
 	cfg := config.LoadConfig()
 
 	logger.Init(cfg.App.Env)
 	defer logger.Log.Sync()
 
-	db := config.NewPostgresPool(cfg, logger.Log)
+	db, err := config.NewPostgresPool(cfg)
+	if err != nil {
+		logger.Log.Error("DB connection failed:", zap.Error(err))
+	}
+
+	logger.Log.Info("Successfully connected to the database")
 	defer db.Close()
 
 	redisClient := config.NewRedisClient(cfg)
@@ -38,13 +42,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go func() {
+	var wg sync.WaitGroup
+
+	wg.Go(func() {
 		logger.Log.Info("Worker service is running...")
 
 		if err := consumer.Start(ctx, notificationProcessor); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Log.Fatal("Worker failed", zap.Error(err))
 		}
-	}()
+	})
 
 	// Listen for shutdown singnals
 	quit := make(chan os.Signal, 1)
@@ -57,10 +63,7 @@ func main() {
 
 	cancel()
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdownCancel()
-
-	<-shutdownCtx.Done()
+	wg.Wait()
 
 	logger.Log.Info("Worker service stopped")
 }

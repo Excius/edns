@@ -20,10 +20,11 @@ func NewRedisConsumer(client *redis.Client, stream string) *RedisConsumer {
 
 func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
 
-	for {
+	lastID := "$"
 
+	for {
 		streams, err := r.clinet.XRead(ctx, &redis.XReadArgs{
-			Streams: []string{r.stream, "0"},
+			Streams: []string{r.stream, lastID},
 			Block:   0,
 			Count:   1,
 		}).Result()
@@ -34,9 +35,8 @@ func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
 
 		for _, stream := range streams {
 			for _, msg := range stream.Messages {
-
 				processor.Process(ctx, msg.Values)
-
+				lastID = msg.ID
 			}
 		}
 	}

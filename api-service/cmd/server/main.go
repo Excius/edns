@@ -22,7 +22,12 @@ func main() {
 	logger.Init(cfg.App.Env)
 	defer logger.Log.Sync()
 
-	db := config.NewPostgresPool(cfg, logger.Log)
+	db, err := config.NewPostgresPool(cfg)
+	if err != nil {
+		logger.Log.Error("DB connection failed:", zap.Error(err))
+	}
+
+	logger.Log.Info("Successfully connected to the database")
 	defer db.Close()
 
 	redisClient := config.NewRedisClient(cfg)

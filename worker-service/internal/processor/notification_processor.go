@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/excius/edns/internal/logger"
 	"github.com/excius/edns/internal/models"
@@ -24,7 +25,7 @@ func NewNotificationProcessor(notificationRepo *repository.NotificationRepositor
 	}
 }
 
-func (p *NotificationProcessor) Process(ctx context.Context, payload map[string]interface{}) {
+func (p *NotificationProcessor) Process(ctx context.Context, payload map[string]any) {
 	notificationID, ok := payload["notification_id"].(string)
 	if !ok {
 		logger.Log.Error("Invalid payload: missing notification_id")
@@ -34,7 +35,9 @@ func (p *NotificationProcessor) Process(ctx context.Context, payload map[string]
 	logger.Log.Info("Processing notification", zap.String("notification_id", notificationID))
 
 	parsedNotiID, err := uuid.Parse(notificationID)
-	logger.Log.Error("Invalid notification ID format", zap.String("notification_id", notificationID), zap.Error(err))
+	if err != nil {
+		logger.Log.Error("Invalid notification ID format", zap.String("notification_id", notificationID), zap.Error(err))
+	}
 
 	_, err = p.notificationRepo.GetNotificationByID(ctx, parsedNotiID)
 	if err != nil {
@@ -70,6 +73,8 @@ func (p *NotificationProcessor) Process(ctx context.Context, payload map[string]
 		}
 
 		var deliveryErr error
+
+		time.Sleep(100 * time.Second)
 
 		switch delivery.Channel {
 

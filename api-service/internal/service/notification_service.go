@@ -96,7 +96,7 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 	}
 
 	// Publish to Redis Stream for processing
-	err = s.queue.Publish(ctx, map[string]interface{}{
+	err = s.queue.Publish(ctx, map[string]any{
 		"notification_id": notification.ID.String(),
 	})
 
