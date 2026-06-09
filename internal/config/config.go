@@ -22,6 +22,7 @@ type RedisConfig struct {
 	Password string
 	DB       int
 	Stream   string
+	Group    string
 }
 
 type App struct {

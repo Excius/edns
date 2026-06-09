@@ -17,6 +17,7 @@ import (
 )
 
 func main() {
+	var wg sync.WaitGroup
 	cfg := config.LoadConfig()
 
 	logger.Init(cfg.App.Env)
@@ -32,7 +33,8 @@ func main() {
 
 	redisClient := config.NewRedisClient(cfg)
 
-	consumer := queue.NewRedisConsumer(redisClient, cfg.Redis.Stream)
+	// TODO: Need to make the worker name dynamic
+	consumer := queue.NewRedisConsumer(redisClient, cfg.Redis.Stream, cfg.Redis.Group, "worker-1")
 
 	notificationRepo := repository.NewNotificationRepository(db)
 	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
@@ -42,11 +44,21 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var wg sync.WaitGroup
+	if err = consumer.EnsureGroup(ctx); err != nil {
+		logger.Log.Fatal(
+			"Failed to create consumer group",
+			zap.Error(err),
+		)
+		return
+	}
+
+	logger.Log.Info(
+		"Consumer group ready",
+		zap.String("group", cfg.Redis.Group),
+	)
 
 	wg.Go(func() {
 		logger.Log.Info("Worker service is running...")
-
 		if err := consumer.Start(ctx, notificationProcessor); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Log.Fatal("Worker failed", zap.Error(err))
 		}

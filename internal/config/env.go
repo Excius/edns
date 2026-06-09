@@ -34,6 +34,7 @@ func LoadConfig() *Config {
 			Password: viper.GetString("redis.password"),
 			DB:       viper.GetInt("redis.db"),
 			Stream:   viper.GetString("redis.stream"),
+			Group:    viper.GetString("redis.group"),
 		},
 		App: App{
 			Env: viper.GetString("app.env"),

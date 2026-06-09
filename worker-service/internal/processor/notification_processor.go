@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"time"
 
 	"github.com/excius/edns/internal/logger"
 	"github.com/excius/edns/internal/models"
@@ -73,8 +72,6 @@ func (p *NotificationProcessor) Process(ctx context.Context, payload map[string]
 		}
 
 		var deliveryErr error
-
-		time.Sleep(100 * time.Second)
 
 		switch delivery.Channel {
 
