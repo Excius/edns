@@ -34,6 +34,7 @@ func LoadConfig() *Config {
 			Password:         viper.GetString("redis.password"),
 			DB:               viper.GetInt("redis.db"),
 			Stream:           viper.GetString("redis.stream"),
+			DlqStream:        viper.GetString("redis.dql_stream"),
 			Group:            viper.GetString("redis.group"),
 			RecoveryInterval: viper.GetInt("redis.recovery_interval"),
 			RecoveryIdleTime: viper.GetInt("redis.recovery_idle_time"),

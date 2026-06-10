@@ -34,14 +34,17 @@ func main() {
 	redisClient := config.NewRedisClient(cfg)
 	defer redisClient.Close()
 
-	// TODO: Need to make the worker name dynamic
-	consumer := queue.NewRedisConsumer(redisClient, cfg.Redis.Stream, cfg.Redis.Group, "worker-1")
-	revovery := queue.NewRedisRecovery(redisClient, cfg.Redis.Stream, cfg.Redis.Group, "worker-2", cfg.Redis.RecoveryInterval, cfg.Redis.RecoveryIdleTime)
+	hostname, _ := os.Hostname()
+	consumerName := hostname
+
+	consumer := queue.NewRedisConsumer(redisClient, cfg.Redis.Stream, cfg.Redis.Group, consumerName)
+	revovery := queue.NewRedisRecovery(redisClient, cfg.Redis.Stream, cfg.Redis.Group, consumerName, cfg.Redis.RecoveryInterval, cfg.Redis.RecoveryIdleTime)
+	dlqPublisher := queue.NewRedisDLQStream(redisClient, cfg.Redis.DlqStream)
 
 	notificationRepo := repository.NewNotificationRepository(db)
 	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
 
-	notificationProcessor := processor.NewNotificationProcessor(notificationRepo, deliveryRepo)
+	notificationProcessor := processor.NewNotificationProcessor(notificationRepo, deliveryRepo, dlqPublisher)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

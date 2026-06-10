@@ -22,6 +22,7 @@ type RedisConfig struct {
 	Password         string
 	DB               int
 	Stream           string
+	DlqStream        string
 	Group            string
 	RecoveryInterval int
 	RecoveryIdleTime int

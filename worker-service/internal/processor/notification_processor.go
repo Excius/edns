@@ -7,6 +7,7 @@ import (
 
 	"github.com/excius/edns/internal/logger"
 	"github.com/excius/edns/internal/models"
+	"github.com/excius/edns/internal/queue"
 	"github.com/excius/edns/internal/repository"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -17,18 +18,22 @@ const maxRetries = 3
 type NotificationProcessor struct {
 	notificationRepo *repository.NotificationRepository
 	deliveryRepo     *repository.NotificationDeliveryRepository
+	dlqPublisher     *queue.RedisDLQ
 }
 
 func NewNotificationProcessor(
 	notificationRepo *repository.NotificationRepository,
 	deliveryRepo *repository.NotificationDeliveryRepository,
+	dlqPublisher *queue.RedisDLQ,
 ) *NotificationProcessor {
 	return &NotificationProcessor{
 		notificationRepo: notificationRepo,
 		deliveryRepo:     deliveryRepo,
+		dlqPublisher:     dlqPublisher,
 	}
 }
 
+// TODO: Need to manage the exactly one condition
 func (p *NotificationProcessor) Process(
 	ctx context.Context,
 	payload map[string]any,
@@ -84,6 +89,14 @@ func (p *NotificationProcessor) Process(
 					err,
 				)
 			}
+
+			// Add to dlq stream
+			p.dlqPublisher.Publish(ctx, map[string]any{
+				"notification_id": parsedNotiID.String(),
+				"delivery_id":     delivery.ID.String(),
+				"channel":         delivery.Channel,
+				"reason":          "max retries exceeded",
+			})
 
 			continue
 		}

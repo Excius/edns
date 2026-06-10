@@ -7,7 +7,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// FIX: Need to move the logger to err from the function
 func NewPostgresPool(cfg *Config) (*pgxpool.Pool, error) {
 	ctx := context.Background()
 
