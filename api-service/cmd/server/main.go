@@ -31,6 +31,7 @@ func main() {
 	defer db.Close()
 
 	redisClient := config.NewRedisClient(cfg)
+	defer redisClient.Close()
 
 	application := app.NewApp(cfg, db, redisClient)
 

@@ -54,15 +54,27 @@ func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
 		for _, stream := range streams {
 			for _, msg := range stream.Messages {
 
-				processor.Process(ctx, msg.Values)
+				if err := processor.Process(ctx, msg.Values); err != nil {
 
-				acked, err := r.clinet.XAck(ctx, r.stream, r.group, msg.ID).Result()
-
-				if err != nil {
-					return err
+					logger.Log.Error(
+						"Failed processing message",
+						zap.String("message_id", msg.ID),
+						zap.Error(err),
+					)
+					continue
 				}
 
-				logger.Log.Info("Message acknowledged", zap.String("message_id", msg.ID), zap.Int64("acked", acked))
+				acked, err := r.clinet.XAck(ctx, r.stream, r.group, msg.ID).Result()
+				if err != nil {
+					logger.Log.Error(
+						"Failed to acknowledge message",
+						zap.String("message_id", msg.ID),
+						zap.Error(err),
+					)
+					continue
+				}
+
+				logger.Log.Debug("Message acknowledged", zap.String("message_id", msg.ID), zap.Int64("acked", acked))
 			}
 		}
 	}

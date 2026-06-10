@@ -99,3 +99,38 @@ func (r *NotificationDeliveryRepository) UpdateStatus(ctx context.Context, deliv
 	_, err := r.db.Exec(ctx, query, status, deliveryID)
 	return err
 }
+
+func (r *NotificationDeliveryRepository) GetRetryCount(ctx context.Context, deliveryID uuid.UUIDs) (int, error) {
+	query := `
+	SELECT retry_count
+	FROM notification_deliveries
+	WHERE id = $1
+	`
+
+	var count int
+
+	err := r.db.QueryRow(ctx, query, deliveryID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (r *NotificationDeliveryRepository) IncrementRetryCount(ctx context.Context, deliveryID uuid.UUID) (int, error) {
+	query := `
+	UPDATE notification_deliveries
+	SET retry_count = retry_count + 1
+	WHERE id = $1
+	RETURNING retry_count
+	`
+
+	var retryCount int
+
+	err := r.db.QueryRow(ctx, query, deliveryID).Scan(&retryCount)
+	if err != nil {
+		return 0, err
+	}
+
+	return retryCount, nil
+}

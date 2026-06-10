@@ -32,9 +32,11 @@ func main() {
 	defer db.Close()
 
 	redisClient := config.NewRedisClient(cfg)
+	defer redisClient.Close()
 
 	// TODO: Need to make the worker name dynamic
 	consumer := queue.NewRedisConsumer(redisClient, cfg.Redis.Stream, cfg.Redis.Group, "worker-1")
+	revovery := queue.NewRedisRecovery(redisClient, cfg.Redis.Stream, cfg.Redis.Group, "worker-2", cfg.Redis.RecoveryInterval, cfg.Redis.RecoveryIdleTime)
 
 	notificationRepo := repository.NewNotificationRepository(db)
 	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
@@ -61,6 +63,12 @@ func main() {
 		logger.Log.Info("Worker service is running...")
 		if err := consumer.Start(ctx, notificationProcessor); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Log.Fatal("Worker failed", zap.Error(err))
+		}
+	})
+
+	wg.Go(func() {
+		if err := revovery.Start(ctx, notificationProcessor); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Log.Fatal("Recovery worker failed", zap.Error(err))
 		}
 	})
 

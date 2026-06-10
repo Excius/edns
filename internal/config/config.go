@@ -18,11 +18,13 @@ type DBConfig struct {
 }
 
 type RedisConfig struct {
-	Addr     string
-	Password string
-	DB       int
-	Stream   string
-	Group    string
+	Addr             string
+	Password         string
+	DB               int
+	Stream           string
+	Group            string
+	RecoveryInterval int
+	RecoveryIdleTime int
 }
 
 type App struct {
