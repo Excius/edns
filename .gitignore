@@ -1,0 +1,42 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+bin/
+api-service/bin/
+worker-service/bin/
+websocket-service/bin/
+dist/
+
+# Temporary files
+tmp/
+**/tmp/
+*.out
+*.log
+
+# Configuration files
+configs/config.yaml
+
+# Generated/misc
+*.cache
+*.pid
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+go.sum
+
+# OS
+*.exe
+*.dll
+*.so

@@ -1,0 +1,1 @@
+FROM TABLE notification_deliveries;
