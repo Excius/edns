@@ -1,23 +1,27 @@
-APP_NAME=notification-api
+# Application names and configuration
+APP_NAME=edns
 DB_URL=postgres://admin:admin@localhost:5432/notifications?sslmode=disable
 
 run-api:
-	cd api-service && go run cmd/server/main.go
+	go run api-service/cmd/server/main.go
 
 build-api:
-	cd api-service && go build -o bin/$(APP_NAME) cmd/server/main.go
+	go build -o bin/$(APP_NAME) api-service/cmd/server/main.go
+
+build-worker:
+	go build -o bin/$(APP_NAME)-worker worker-service/cmd/worker/main.go
 
 test:
-	cd api-service && go test ./...
+	go test ./...
 
 lint:
-	cd api-service && golangci-lint run
+	golangci-lint run
 
 fmt:
-	cd api-service && go fmt ./...
+	go fmt ./...
 
 vet:
-	cd api-service && go vet ./...
+	go vet ./...
 
 docker-up-dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
@@ -25,6 +29,13 @@ docker-up-dev:
 docker-down-dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 
+docker-up-prod:
+	docker compose -f docker-compose.yml up --build
+
+docker-down-prod:
+	docker compose -f docker-compose.yml down
+
+# database migrations
 migrate-up:
 	migrate -path migrations -database "$(DB_URL)" up
 
@@ -34,8 +45,9 @@ migrate-down:
 migrate-create:
 	migrate create -ext sql -dir migrations $(name)
 
+# manage dependencies across all services
 deps:
-	cd api-service && do mod tidy
+	do mod tidy
 
 clean:
-	cd api-service && rm -rf bin
+	rm -rf bin

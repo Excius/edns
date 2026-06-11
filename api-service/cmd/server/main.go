@@ -1,16 +1,18 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/excius/edns/api-service/internal/app"
+	"github.com/excius/edns/internal/config"
+	"github.com/excius/edns/internal/logger"
 	"go.uber.org/zap"
-
-	"notification-system/api/internal/config"
-	"notification-system/api/internal/handlers"
-	"notification-system/api/internal/repository"
-	"notification-system/api/internal/service"
-	"notification-system/api/pkg/logger"
 )
 
 func main() {
@@ -20,36 +22,48 @@ func main() {
 	logger.Init(cfg.App.Env)
 	defer logger.Log.Sync()
 
-	db := config.NewPostgresPool(cfg)
+	db, err := config.NewPostgresPool(cfg)
+	if err != nil {
+		logger.Log.Error("DB connection failed:", zap.Error(err))
+	}
+
+	logger.Log.Info("Successfully connected to the database")
 	defer db.Close()
 
-	// Repositories
-	userRepo := repository.NewUserRepository(db)
-	notificationRepo := repository.NewNotificationRepository(db)
-	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
+	redisClient := config.NewRedisClient(cfg)
+	defer redisClient.Close()
 
-	// Services
-	userService := service.NewUserService(userRepo)
-	notificationService := service.NewNotificationService(userRepo, notificationRepo, deliveryRepo)
+	application := app.NewApp(cfg, db, redisClient)
 
-	// Handlers
-	userHandler := handlers.NewUserHandler(userService)
-	notificationHandler := handlers.NewNotificationHandler(notificationService)
+	server := &http.Server{
+		Addr:    ":" + cfg.Server.Port,
+		Handler: application.Router,
+	}
 
-	// Router
-	r := gin.Default()
+	go func() {
+		logger.Log.Info("Starting server", zap.String("port", cfg.Server.Port))
 
-	api := r.Group("/api")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Log.Fatal("Server failed to start", zap.Error(err))
+		}
+	}()
 
-	api.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	// Listen for shutdown signals and gracefully shut down the server
+	quit := make(chan os.Signal, 1)
 
-	api.POST("/users", userHandler.CreateUser)
-	api.POST("/notifications", notificationHandler.CreateNotification)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	logger.Log.Info("Server started", zap.String("port", cfg.Server.Port))
+	<-quit
 
-	r.Run(":" + cfg.Server.Port)
+	logger.Log.Info("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Log.Fatal("Server forced to shutdown", zap.Error(err))
+	}
+
+	logger.Log.Info("Server exited gracefully")
 
 }

@@ -16,23 +16,23 @@ services:
     container_name: notification_redis
     ports:
       - "6379:6379"
-  
+
   api:
     build:
-      context: ./api-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-service/Dockerfile
     container_name: edns_api
     ports:
       - "8080:8080"
     depends_on:
       - postgres
       - redis
-  
+
   worker:
     build:
-      context: ./worker-service
-      dockerfile: Dockerfile
-    container_name: edns_worker
+      context: .
+      dockerfile: worker-service/Dockerfile
+    # container_name: edns_worker
     depends_on:
       - redis
       - postgres
