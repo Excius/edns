@@ -10,9 +10,11 @@ import (
 
 	"github.com/excius/edns/internal/config"
 	"github.com/excius/edns/internal/logger"
+	"github.com/excius/edns/internal/models"
 	"github.com/excius/edns/internal/queue"
 	"github.com/excius/edns/internal/repository"
 	"github.com/excius/edns/worker-service/internal/processor"
+	"github.com/excius/edns/worker-service/internal/sender"
 	"go.uber.org/zap"
 )
 
@@ -26,6 +28,7 @@ func main() {
 	db, err := config.NewPostgresPool(cfg)
 	if err != nil {
 		logger.Log.Error("DB connection failed:", zap.Error(err))
+		return
 	}
 
 	logger.Log.Info("Successfully connected to the database")
@@ -44,7 +47,12 @@ func main() {
 	notificationRepo := repository.NewNotificationRepository(db)
 	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
 
-	notificationProcessor := processor.NewNotificationProcessor(notificationRepo, deliveryRepo, dlqPublisher)
+	senders := map[string]sender.Sender{
+		string(models.ChannelEmail):     sender.NewEmailSender(),
+		string(models.ChannelWebsocket): sender.NewWebSocketSender(),
+	}
+
+	notificationProcessor := processor.NewNotificationProcessor(notificationRepo, deliveryRepo, dlqPublisher, senders)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

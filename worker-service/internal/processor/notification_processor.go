@@ -9,6 +9,7 @@ import (
 	"github.com/excius/edns/internal/models"
 	"github.com/excius/edns/internal/queue"
 	"github.com/excius/edns/internal/repository"
+	"github.com/excius/edns/worker-service/internal/sender"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -19,21 +20,26 @@ type NotificationProcessor struct {
 	notificationRepo *repository.NotificationRepository
 	deliveryRepo     *repository.NotificationDeliveryRepository
 	dlqPublisher     *queue.RedisDLQ
+
+	senders map[string]sender.Sender
 }
 
 func NewNotificationProcessor(
 	notificationRepo *repository.NotificationRepository,
 	deliveryRepo *repository.NotificationDeliveryRepository,
 	dlqPublisher *queue.RedisDLQ,
+	senders map[string]sender.Sender,
 ) *NotificationProcessor {
 	return &NotificationProcessor{
 		notificationRepo: notificationRepo,
 		deliveryRepo:     deliveryRepo,
 		dlqPublisher:     dlqPublisher,
+		senders:          senders,
 	}
 }
 
-// TODO: Need to manage the exactly one condition
+// TODO: Add idempotency protection when real email/websocket
+// delivery is implemented. Redis Streams provide at-least-once delivery.
 func (p *NotificationProcessor) Process(
 	ctx context.Context,
 	payload map[string]any,
@@ -91,12 +97,20 @@ func (p *NotificationProcessor) Process(
 			}
 
 			// Add to dlq stream
-			p.dlqPublisher.Publish(ctx, map[string]any{
+			err := p.dlqPublisher.Publish(ctx, map[string]any{
 				"notification_id": parsedNotiID.String(),
 				"delivery_id":     delivery.ID.String(),
 				"channel":         delivery.Channel,
 				"reason":          "max retries exceeded",
 			})
+
+			if err != nil {
+				return fmt.Errorf(
+					"publish delivery %s to dlq: %w",
+					delivery.ID,
+					err,
+				)
+			}
 
 			continue
 		}
@@ -115,36 +129,14 @@ func (p *NotificationProcessor) Process(
 
 		var deliveryErr error
 
-		switch delivery.Channel {
-
-		case "email":
-
-			logger.Log.Info(
-				"Processing email delivery",
-				zap.String("notification_id", parsedNotiID.String()),
-				zap.String("delivery_id", delivery.ID.String()),
-			)
-
-			// TODO: email sender
-			deliveryErr = nil
-
-		case "websocket":
-
-			logger.Log.Info(
-				"Processing websocket delivery",
-				zap.String("notification_id", parsedNotiID.String()),
-				zap.String("delivery_id", delivery.ID.String()),
-			)
-
-			// TODO: websocket sender
-			deliveryErr = nil
-
-		default:
-
+		deliverySender, exists := p.senders[delivery.Channel]
+		if !exists {
 			deliveryErr = fmt.Errorf(
 				"unsupported delivery channel: %s",
 				delivery.Channel,
 			)
+		} else {
+			deliveryErr = deliverySender.Send(ctx, parsedNotiID.String())
 		}
 
 		if deliveryErr != nil {
