@@ -47,7 +47,7 @@ migrate-create:
 
 # manage dependencies across all services
 deps:
-	do mod tidy
+	go mod tidy
 
 clean:
 	rm -rf bin
