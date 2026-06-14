@@ -11,7 +11,7 @@ import (
 
 type Hub struct {
 	// userID -> ConnID -> Conn
-	users   map[string]map[string]*client.Client
+	users   map[string]map[string]struct{}
 	clients map[string]*client.Client
 
 	mu sync.RWMutex
@@ -19,7 +19,7 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		users:   make(map[string]map[string]*client.Client),
+		users:   make(map[string]map[string]struct{}),
 		clients: make(map[string]*client.Client),
 	}
 }
@@ -31,9 +31,9 @@ func (h *Hub) Register(c *client.Client) {
 	h.clients[c.ID] = c
 
 	if _, exists := h.users[c.UserID]; !exists {
-		h.users[c.UserID] = make(map[string]*client.Client)
+		h.users[c.UserID] = make(map[string]struct{})
 	}
-	h.users[c.UserID][c.ID] = c
+	h.users[c.UserID][c.ID] = struct{}{}
 
 	fmt.Println(
 		"Client connected. Total clients:",
@@ -75,9 +75,9 @@ func (h *Hub) Count() int {
 
 func (h *Hub) SendToClient(clientID string, message []byte) error {
 	h.mu.RLock()
-	defer h.mu.RUnlock()
-
 	client, ok := h.clients[clientID]
+	h.mu.RUnlock()
+
 	if !ok {
 		return errors.New("no conn associated")
 	}
@@ -90,22 +90,27 @@ func (h *Hub) SendToClient(clientID string, message []byte) error {
 	return nil
 }
 
-func (h *Hub) SendToUser(userId string, message []byte) error {
+func (h *Hub) SendToUser(userId string, payload []byte) error {
 	h.mu.RLock()
-	defer h.mu.RUnlock()
 
-	conns, ok := h.users[userId]
-	if !ok {
-		return errors.New("no conn associated with this user")
+	clientIDs := make([]string, 0, len(h.users[userId]))
+	for clientID := range h.users[userId] {
+		clientIDs = append(clientIDs, clientID)
 	}
+
+	h.mu.RUnlock()
 
 	var sendErr error
 
-	for _, client := range conns {
-		err := client.Conn.WriteMessage(websocket.TextMessage, message)
+	for _, clientID := range clientIDs {
+
+		client := h.clients[clientID]
+
+		err := client.Conn.WriteMessage(websocket.TextMessage, payload)
 		if err != nil {
 			sendErr = fmt.Errorf("write failed: %w", err)
 		}
 	}
+
 	return sendErr
 }

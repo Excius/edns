@@ -32,10 +32,20 @@ services:
     build:
       context: .
       dockerfile: worker-service/Dockerfile
-    # container_name: edns_worker
     depends_on:
       - redis
       - postgres
+
+  websocket:
+    build:
+      context: .
+      dockerfile: websocket-service/Dockerfile
+    container_name: websocket_service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+      - worker
 
 volumes:
   postgres_data:

@@ -42,7 +42,7 @@ func (s *NotificationService) GetDeliveriesByNotificatoinID(ctx context.Context,
 	return s.deliveryRepo.GetDeliveriesByNotificatoinID(ctx, notificationID)
 }
 
-func (s *NotificationService) CreateNotification(ctx context.Context, userID uuid.UUID, message string, channels []string) (*models.Notification, error) {
+func (s *NotificationService) CreateNotification(ctx context.Context, userID uuid.UUID, title string, message string, channels []string) (*models.Notification, error) {
 
 	// Validate user exists
 	_, err := s.userRepo.GetUserByID(ctx, userID)
@@ -70,6 +70,7 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 	// Create notification
 	notification := &models.Notification{
 		UserID:  userID,
+		Title:   title,
 		Message: message,
 		Status:  models.StatusPending,
 	}

@@ -1,0 +1,60 @@
+package subscriber
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/excius/edns/internal/logger"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
+)
+
+type RedisSubscriber struct {
+	client  *redis.Client
+	channel string
+}
+
+func NewRedisSubscriber(client *redis.Client, channel string) *RedisSubscriber {
+	return &RedisSubscriber{
+		client:  client,
+		channel: channel,
+	}
+}
+
+func (s *RedisSubscriber) Start(ctx context.Context, handler EventHandler) error {
+
+	pubsub := s.client.Subscribe(ctx, s.channel)
+	defer pubsub.Close()
+
+	_, err := pubsub.Receive(ctx)
+	if err != nil {
+		return fmt.Errorf("pubsub receive failed: %w", err)
+	}
+
+	logger.Log.Info(
+		"Subscribed to Redis channel",
+		zap.String("channel", s.channel),
+	)
+
+	messages := pubsub.Channel()
+
+	for {
+		select {
+
+		case <-ctx.Done():
+			return nil
+
+		case msg, ok := <-messages:
+			if !ok {
+				return fmt.Errorf("publish channel closed")
+			}
+
+			if err := handler.Handle(ctx, []byte(msg.Payload)); err != nil {
+				logger.Log.Error(
+					"message handler failed",
+					zap.Error(err),
+				)
+			}
+		}
+	}
+}
