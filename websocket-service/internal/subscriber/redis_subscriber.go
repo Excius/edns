@@ -49,6 +49,11 @@ func (s *RedisSubscriber) Start(ctx context.Context, handler EventHandler) error
 				return fmt.Errorf("publish channel closed")
 			}
 
+			logger.Log.Info(
+				"Message received from redis",
+				zap.String("payload", msg.Payload),
+			)
+
 			if err := handler.Handle(ctx, []byte(msg.Payload)); err != nil {
 				logger.Log.Error(
 					"message handler failed",

@@ -5,6 +5,7 @@ type Config struct {
 	WSServer WSServerConfig
 	DB       DBConfig
 	Redis    RedisConfig
+	SMTP     SMTPConfig
 	App      App
 }
 
@@ -32,6 +33,14 @@ type RedisConfig struct {
 	RecoveryInterval int
 	RecoveryIdleTime int
 	Channel          string
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	From     string
 }
 
 type App struct {

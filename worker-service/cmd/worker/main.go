@@ -49,7 +49,7 @@ func main() {
 
 	senders := map[string]sender.Sender{
 		string(models.ChannelEmail):     sender.NewEmailSender(),
-		string(models.ChannelWebsocket): sender.NewWebSocketSender(),
+		string(models.ChannelWebsocket): sender.NewWebSocketSender(redisClient, cfg.Redis.Channel),
 	}
 
 	notificationProcessor := processor.NewNotificationProcessor(notificationRepo, deliveryRepo, dlqPublisher, senders)

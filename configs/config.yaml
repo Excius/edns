@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+ws_server:
+  port: 8081
+
+db:
+  url: postgresql://admin:admin@postgres:5432/notifications
+  max_conns: 20
+  min_conns: 3
+
+redis:
+  addr: redis:6379
+  password: ""
+  db: 0
+
+  stream: notifications
+  dlq_stream: notifications_dlq
+
+  group: notification_workers
+
+  recovery_interval: 30
+  recovery_idle_time: 60
+
+  channel: websocket_notifications
+
+smtp:
+  host: mailpit
+  port: 1025
+  username: ""
+  password: ""
+  from: noreply@edns.dev
+
+app:
+  env: development

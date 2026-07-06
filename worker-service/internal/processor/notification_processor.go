@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/excius/edns/internal/events"
 	"github.com/excius/edns/internal/logger"
 	"github.com/excius/edns/internal/models"
 	"github.com/excius/edns/internal/queue"
@@ -73,6 +74,22 @@ func (p *NotificationProcessor) Process(
 		)
 	}
 
+	notification, err := p.notificationRepo.GetNotificationByID(ctx, parsedNotiID)
+	if err != nil {
+		return fmt.Errorf(
+			"fetch notification for notification %s: %w",
+			parsedNotiID,
+			err,
+		)
+	}
+
+	event := events.NotificationEvent{
+		NotificationID: parsedNotiID.String(),
+		UserID:         notification.UserID.String(),
+		Title:          notification.Title,
+		Message:        notification.Message,
+	}
+
 	for _, delivery := range deliveries {
 
 		// Already finished
@@ -136,7 +153,7 @@ func (p *NotificationProcessor) Process(
 				delivery.Channel,
 			)
 		} else {
-			deliveryErr = deliverySender.Send(ctx, parsedNotiID.String())
+			deliveryErr = deliverySender.Send(ctx, event)
 		}
 
 		if deliveryErr != nil {
