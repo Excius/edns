@@ -16,9 +16,6 @@ tmp/
 *.out
 *.log
 
-# Configuration files
-configs/config.yaml
-
 # Generated/misc
 *.cache
 *.pid

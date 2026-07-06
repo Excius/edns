@@ -43,6 +43,13 @@ func LoadConfig() *Config {
 			RecoveryIdleTime: viper.GetInt("redis.recovery_idle_time"),
 			Channel:          viper.GetString("redis.channel"),
 		},
+		SMTP: SMTPConfig{
+			Host:     viper.GetString("smtp.host"),
+			Port:     viper.GetInt("smtp.port"),
+			Username: viper.GetString("smtp.username"),
+			Password: viper.GetString("smtp.password"),
+			From:     viper.GetString("smtp.from"),
+		},
 		App: App{
 			Env: viper.GetString("app.env"),
 		},
