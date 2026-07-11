@@ -10,12 +10,25 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - edns_network
 
   redis:
-    image: redis:7
+    image: redis:8-alpine
     container_name: notification_redis
     ports:
       - "6379:6379"
+    networks:
+      - edns_network
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    networks:
+      - edns_network
 
   api:
     build:
@@ -27,15 +40,36 @@ services:
     depends_on:
       - postgres
       - redis
+    networks:
+      - edns_network
 
   worker:
     build:
       context: .
       dockerfile: worker-service/Dockerfile
-    # container_name: edns_worker
     depends_on:
       - redis
       - postgres
+      - mailpit
+    networks:
+      - edns_network
+
+  websocket:
+    build:
+      context: .
+      dockerfile: websocket-service/Dockerfile
+    container_name: websocket_service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+      - worker
+    networks:
+      - edns_network
 
 volumes:
   postgres_data:
+
+networks:
+  edns_network:
+    driver: bridge

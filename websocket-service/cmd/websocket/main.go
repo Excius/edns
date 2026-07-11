@@ -1,0 +1,131 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/excius/edns/internal/config"
+	"github.com/excius/edns/internal/logger"
+	"github.com/excius/edns/websocket-service/internal/handler"
+	"github.com/excius/edns/websocket-service/internal/hub"
+	"github.com/excius/edns/websocket-service/internal/subscriber"
+	"github.com/excius/edns/websocket-service/internal/transport"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+)
+
+func main() {
+	// Configuration
+	cfg := config.LoadConfig()
+
+	// Logger
+	logger.Init(cfg.App.Env)
+	defer logger.Log.Sync()
+
+	// Shared application context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Redis
+	redisClient := config.NewRedisClient(cfg)
+	defer redisClient.Close()
+
+	// Dependencies
+	hub := hub.NewHub()
+
+	notificationHandler := handler.NewNotificationHandler(hub)
+
+	redisSubscriber := subscriber.NewRedisSubscriber(
+		redisClient,
+		cfg.Redis.Channel,
+	)
+
+	// Background workers
+	var wg sync.WaitGroup
+
+	wg.Go(func() {
+		logger.Log.Info(
+			"Starting Redis subscriber",
+			zap.String("channel", cfg.Redis.Channel),
+		)
+
+		if err := redisSubscriber.Start(
+			ctx,
+			notificationHandler,
+		); err != nil && !errors.Is(err, context.Canceled) {
+
+			logger.Log.Error(
+				"Redis subscriber failed",
+				zap.Error(err),
+			)
+
+			cancel()
+		}
+	})
+
+	// HTTP / WebSocket server
+	wsHandler := transport.NewWebSocketHandler(hub)
+
+	router := gin.Default()
+
+	router.GET("/ws", wsHandler.Handler)
+
+	server := &http.Server{
+		Addr:    ":" + cfg.WSServer.Port,
+		Handler: router,
+	}
+
+	go func() {
+		logger.Log.Info(
+			"Starting WebSocket server",
+			zap.String("port", cfg.WSServer.Port),
+		)
+
+		if err := server.ListenAndServe(); err != nil &&
+			!errors.Is(err, http.ErrServerClosed) {
+
+			logger.Log.Fatal(
+				"WebSocket server failed",
+				zap.Error(err),
+			)
+		}
+	}()
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+
+	signal.Notify(
+		quit,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+
+	<-quit
+
+	logger.Log.Info("Shutdown signal received")
+
+	cancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(
+		context.Background(),
+		10*time.Second,
+	)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logger.Log.Error(
+			"Server forced to shutdown",
+			zap.Error(err),
+		)
+	}
+
+	wg.Wait()
+
+	logger.Log.Info("Server exited gracefully")
+}
