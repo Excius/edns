@@ -1,13 +1,19 @@
 package config
 
 type Config struct {
-	Server ServerConfig
-	DB     DBConfig
-	Redis  RedisConfig
-	App    App
+	Server   ServerConfig
+	WSServer WSServerConfig
+	DB       DBConfig
+	Redis    RedisConfig
+	SMTP     SMTPConfig
+	App      App
 }
 
 type ServerConfig struct {
+	Port string
+}
+
+type WSServerConfig struct {
 	Port string
 }
 
@@ -26,6 +32,15 @@ type RedisConfig struct {
 	Group            string
 	RecoveryInterval int
 	RecoveryIdleTime int
+	Channel          string
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	From     string
 }
 
 type App struct {

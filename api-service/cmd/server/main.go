@@ -25,6 +25,7 @@ func main() {
 	db, err := config.NewPostgresPool(cfg)
 	if err != nil {
 		logger.Log.Error("DB connection failed:", zap.Error(err))
+		return
 	}
 
 	logger.Log.Info("Successfully connected to the database")

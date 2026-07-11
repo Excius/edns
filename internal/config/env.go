@@ -24,6 +24,9 @@ func LoadConfig() *Config {
 		Server: ServerConfig{
 			Port: viper.GetString("server.port"),
 		},
+		WSServer: WSServerConfig{
+			Port: viper.GetString("ws_server.port"),
+		},
 		DB: DBConfig{
 			URL:      viper.GetString("db.url"),
 			MAXConns: viper.GetInt32("db.max_conns"),
@@ -38,6 +41,14 @@ func LoadConfig() *Config {
 			Group:            viper.GetString("redis.group"),
 			RecoveryInterval: viper.GetInt("redis.recovery_interval"),
 			RecoveryIdleTime: viper.GetInt("redis.recovery_idle_time"),
+			Channel:          viper.GetString("redis.channel"),
+		},
+		SMTP: SMTPConfig{
+			Host:     viper.GetString("smtp.host"),
+			Port:     viper.GetInt("smtp.port"),
+			Username: viper.GetString("smtp.username"),
+			Password: viper.GetString("smtp.password"),
+			From:     viper.GetString("smtp.from"),
 		},
 		App: App{
 			Env: viper.GetString("app.env"),

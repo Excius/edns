@@ -9,7 +9,7 @@ services:
     command: air
     ports:
       - "8080:8080"
-  
+
   worker:
     build:
       context: .
@@ -18,6 +18,17 @@ services:
       - .:/app
     working_dir: /app/worker-service
     command: air
+
+  websocket:
+    build:
+      context: .
+      dockerfile: websocket-service/Dockerfile.dev
+    volumes:
+      - .:/app
+    working_dir: /app/websocket-service
+    command: air
+    ports:
+      - "8081:8081"
 
 volumes:
   postgres_data:

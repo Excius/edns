@@ -10,9 +10,11 @@ import (
 
 	"github.com/excius/edns/internal/config"
 	"github.com/excius/edns/internal/logger"
+	"github.com/excius/edns/internal/models"
 	"github.com/excius/edns/internal/queue"
 	"github.com/excius/edns/internal/repository"
 	"github.com/excius/edns/worker-service/internal/processor"
+	"github.com/excius/edns/worker-service/internal/sender"
 	"go.uber.org/zap"
 )
 
@@ -26,10 +28,18 @@ func main() {
 	db, err := config.NewPostgresPool(cfg)
 	if err != nil {
 		logger.Log.Error("DB connection failed:", zap.Error(err))
+		return
 	}
 
 	logger.Log.Info("Successfully connected to the database")
 	defer db.Close()
+
+	mailClient, err := config.NewMailClient(cfg)
+	if err != nil {
+		logger.Log.Error("Mail client connection failed:", zap.Error(err))
+		return
+	}
+	mailClient.Close()
 
 	redisClient := config.NewRedisClient(cfg)
 	defer redisClient.Close()
@@ -37,14 +47,42 @@ func main() {
 	hostname, _ := os.Hostname()
 	consumerName := hostname
 
-	consumer := queue.NewRedisConsumer(redisClient, cfg.Redis.Stream, cfg.Redis.Group, consumerName)
-	revovery := queue.NewRedisRecovery(redisClient, cfg.Redis.Stream, cfg.Redis.Group, consumerName, cfg.Redis.RecoveryInterval, cfg.Redis.RecoveryIdleTime)
-	dlqPublisher := queue.NewRedisDLQStream(redisClient, cfg.Redis.DlqStream)
+	consumer := queue.NewRedisConsumer(
+		redisClient,
+		cfg.Redis.Stream,
+		cfg.Redis.Group,
+		consumerName,
+	)
+	revovery := queue.NewRedisRecovery(
+		redisClient,
+		cfg.Redis.Stream,
+		cfg.Redis.Group,
+		consumerName,
+		cfg.Redis.RecoveryInterval,
+		cfg.Redis.RecoveryIdleTime,
+	)
 
+	dlqPublisher := queue.NewRedisDLQStream(
+		redisClient,
+		cfg.Redis.DlqStream,
+	)
+
+	userRepo := repository.NewUserRepository(db)
 	notificationRepo := repository.NewNotificationRepository(db)
 	deliveryRepo := repository.NewNotificationDeliveryRepository(db)
 
-	notificationProcessor := processor.NewNotificationProcessor(notificationRepo, deliveryRepo, dlqPublisher)
+	senders := map[string]sender.Sender{
+		string(models.ChannelEmail):     sender.NewEmailSender(mailClient, cfg.SMTP.From),
+		string(models.ChannelWebsocket): sender.NewWebSocketSender(redisClient, cfg.Redis.Channel),
+	}
+
+	notificationProcessor := processor.NewNotificationProcessor(
+		userRepo,
+		notificationRepo,
+		deliveryRepo,
+		dlqPublisher,
+		senders,
+	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

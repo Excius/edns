@@ -71,6 +71,11 @@ func (n *NotificationHandler) CreateNotification(c *gin.Context) {
 		return
 	}
 
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "title cannot be empty"})
+	}
+
 	message := strings.TrimSpace(req.Message)
 	if message == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "message cannot be empty"})
@@ -82,7 +87,7 @@ func (n *NotificationHandler) CreateNotification(c *gin.Context) {
 		return
 	}
 
-	notification, err := n.notificationService.CreateNotification(c.Request.Context(), userID, message, req.Channels)
+	notification, err := n.notificationService.CreateNotification(c.Request.Context(), userID, title, message, req.Channels)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
