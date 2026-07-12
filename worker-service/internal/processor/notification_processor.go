@@ -44,8 +44,12 @@ func NewNotificationProcessor(
 	}
 }
 
-// TODO: Add idempotency protection when real email/websocket
-// delivery is implemented. Redis Streams provide at-least-once delivery.
+// TODO:
+// Prevent duplicate deliveries.
+// Redis Streams provide at-least-once delivery, so retries may
+// invoke the sender multiple times. Persist a delivery identifier
+// (or external message ID) and skip sending if the delivery has
+// already been completed.
 func (p *NotificationProcessor) Process(
 	ctx context.Context,
 	payload map[string]any,
@@ -79,8 +83,10 @@ func (p *NotificationProcessor) Process(
 		)
 	}
 
-	// TODO: can make a join request to get data in one request rather then 3 simulateneous requests
-
+	// TODO:
+	// Replace multiple repository lookups with a single JOIN query
+	// that fetches delivery, notification, and user data together.
+	// This reduces database round trips and simplifies the processor.
 	notification, err := p.notificationRepo.GetNotificationByID(ctx, parsedNotiID)
 	if err != nil {
 		return queue.ProcessResult{}, fmt.Errorf(
@@ -227,7 +233,10 @@ func (p *NotificationProcessor) Process(
 		}
 	}
 
-	// TODO: Need to add Processing timeout recvery later in this
+	// TODO:
+	// Recover deliveries stuck in StatusProcessing for longer than the configured timeout.
+	// Periodically scan the database, mark stale deliveries back to StatusPending,
+	// increment the retry count, and let Redis Stream recovery retry them.
 	status, err := p.refreshNotificationStatus(
 		ctx,
 		parsedNotiID,

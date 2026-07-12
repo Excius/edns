@@ -58,6 +58,7 @@ func main() {
 		cfg.Redis.Stream,
 		cfg.Redis.Group,
 		consumerName,
+		cfg.Redis.RecoveryMessageCount,
 		cfg.Redis.RecoveryInterval,
 		cfg.Redis.RecoveryIdleTime,
 	)

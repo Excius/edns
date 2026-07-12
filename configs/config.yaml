@@ -19,6 +19,7 @@ redis:
 
   group: notification_workers
 
+  recovery_message_count: 4
   recovery_interval: 30
   recovery_idle_time: 60
 

@@ -14,16 +14,26 @@ type RedisRecovery struct {
 	stream           string
 	group            string
 	consumerName     string
+	messageCount     int64
 	recoveryInterval int
 	recoveryIdleTime int
 }
 
-func NewRedisRecovery(client *redis.Client, stream string, group string, consumerName string, recoveryInterval int, recoveryIdleTime int) *RedisRecovery {
+func NewRedisRecovery(
+	client *redis.Client,
+	stream string,
+	group string,
+	consumerName string,
+	messageCount int64,
+	recoveryInterval int,
+	recoveryIdleTime int,
+) *RedisRecovery {
 	return &RedisRecovery{
 		client:           client,
 		stream:           stream,
 		group:            group,
 		consumerName:     consumerName,
+		messageCount:     messageCount,
 		recoveryInterval: recoveryInterval, // after what duration recovery runs
 		recoveryIdleTime: recoveryIdleTime, // how old msg needs to be processed
 	}
@@ -55,7 +65,6 @@ func (r *RedisRecovery) Start(ctx context.Context, processor Processor) error {
 				default:
 				}
 
-				// TODO: Need to make the count a config var
 				msgs, nextCursor, err := r.client.XAutoClaim(
 					ctx,
 					&redis.XAutoClaimArgs{
@@ -63,7 +72,7 @@ func (r *RedisRecovery) Start(ctx context.Context, processor Processor) error {
 						Group:    r.group,
 						MinIdle:  time.Duration(r.recoveryIdleTime) * time.Second,
 						Consumer: r.consumerName,
-						Count:    4,
+						Count:    r.messageCount,
 						Start:    cursor,
 					}).Result()
 				if err != nil {
