@@ -84,14 +84,14 @@ func (r *RedisRecovery) Start(ctx context.Context, processor stream.Processor) e
 					}).Result()
 				if err != nil {
 					r.metrics.RecoveryErrors.Inc()
-					logger.Log.Error(
+					logger.FromContext(ctx).Error(
 						"XAUTOCLAIM failed",
 						zap.Error(err),
 					)
 					break recoveryLoop
 				}
 
-				logger.Log.Debug(
+				logger.FromContext(ctx).Debug(
 					"Recovery scan",
 					zap.String("cursor", cursor),
 					zap.String("next_cursor", nextCursor),
@@ -111,7 +111,7 @@ func (r *RedisRecovery) Start(ctx context.Context, processor stream.Processor) e
 					default:
 					}
 
-					logger.Log.Info(
+					logger.FromContext(ctx).Info(
 						"Recovered stale message",
 						zap.String("message_id", msg.ID),
 					)
@@ -124,7 +124,7 @@ func (r *RedisRecovery) Start(ctx context.Context, processor stream.Processor) e
 						time.Since(start).Seconds(),
 					)
 					if err != nil {
-						logger.Log.Error(
+						logger.FromContext(ctx).Error(
 							"Failed processing message",
 							zap.String("message_id", msg.ID),
 							zap.Error(err),
@@ -136,7 +136,7 @@ func (r *RedisRecovery) Start(ctx context.Context, processor stream.Processor) e
 
 					// Leaving for recovery to retry this message
 					if !result.Ack {
-						logger.Log.Debug(
+						logger.FromContext(ctx).Debug(
 							"Notification still in progress",
 							zap.String("message_id", msg.ID),
 						)
@@ -147,7 +147,7 @@ func (r *RedisRecovery) Start(ctx context.Context, processor stream.Processor) e
 
 					acked, err := r.client.XAck(ctx, r.stream, r.group, msg.ID).Result()
 					if err != nil {
-						logger.Log.Error(
+						logger.FromContext(ctx).Error(
 							"Failed to acknowledge message",
 							zap.String("message_id", msg.ID),
 							zap.Error(err),
@@ -156,7 +156,7 @@ func (r *RedisRecovery) Start(ctx context.Context, processor stream.Processor) e
 						continue
 					}
 
-					logger.Log.Debug(
+					logger.FromContext(ctx).Debug(
 						"Message acknowledged",
 						zap.String("message_id", msg.ID),
 						zap.Int64("acked", acked),

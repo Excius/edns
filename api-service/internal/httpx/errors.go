@@ -28,7 +28,7 @@ func HandleError(c *gin.Context, err error) {
 		})
 
 	default:
-		logger.Log.Error(
+		logger.FromContext(c.Request.Context()).Error(
 			"request failed",
 			zap.String("path", c.Request.URL.Path),
 			zap.String("method", c.Request.Method),

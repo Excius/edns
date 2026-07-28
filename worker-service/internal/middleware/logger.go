@@ -22,7 +22,7 @@ func Logger() gin.HandlerFunc {
 			route = "unknown"
 		}
 
-		logger.Log.Info(
+		logger.FromContext(c.Request.Context()).Info(
 			"http request",
 			zap.String("method", c.Request.Method),
 			zap.String("route", route),

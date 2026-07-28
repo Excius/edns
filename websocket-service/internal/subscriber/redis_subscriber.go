@@ -34,7 +34,7 @@ func (s *RedisSubscriber) Start(ctx context.Context, handler EventHandler) error
 		return fmt.Errorf("pubsub receive failed: %w", err)
 	}
 
-	logger.Log.Info(
+	logger.FromContext(ctx).Info(
 		"Subscribed to Redis channel",
 		zap.String("channel", s.channel),
 	)
@@ -52,7 +52,7 @@ func (s *RedisSubscriber) Start(ctx context.Context, handler EventHandler) error
 				return fmt.Errorf("publish channel closed")
 			}
 
-			logger.Log.Info(
+			logger.FromContext(ctx).Info(
 				"Message received from redis",
 				zap.String("payload", msg.Payload),
 			)
@@ -61,7 +61,7 @@ func (s *RedisSubscriber) Start(ctx context.Context, handler EventHandler) error
 
 			if err := handler.Handle(ctx, []byte(msg.Payload)); err != nil {
 				s.metrics.Subscriber.MessageHandlingErrors.Inc()
-				logger.Log.Error(
+				logger.FromContext(ctx).Error(
 					"message handler failed",
 					zap.Error(err),
 				)

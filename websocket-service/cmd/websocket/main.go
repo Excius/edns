@@ -87,7 +87,11 @@ func main() {
 
 	router := gin.New()
 
-	router.Use(middleware.Recovery(), middleware.Logger())
+	router.Use(
+		middleware.RequestID(),
+		middleware.Logger(),
+		middleware.Recovery(),
+	)
 
 	api := router.Group("/api")
 

@@ -70,7 +70,7 @@ func (r *RedisConsumer) Start(ctx context.Context, processor stream.Processor) e
 				result, err := processor.Process(ctx, msg.Values)
 				if err != nil {
 					r.metrics.MessageProcessingErrors.Inc()
-					logger.Log.Error(
+					logger.FromContext(ctx).Error(
 						"failed processing message",
 						zap.String("message_id", msg.ID),
 						zap.Error(err),
@@ -81,7 +81,7 @@ func (r *RedisConsumer) Start(ctx context.Context, processor stream.Processor) e
 				}
 
 				if !result.Ack {
-					logger.Log.Debug(
+					logger.FromContext(ctx).Debug(
 						"notification still in progress",
 						zap.String("message_id", msg.ID),
 					)
@@ -92,7 +92,7 @@ func (r *RedisConsumer) Start(ctx context.Context, processor stream.Processor) e
 
 				acked, err := r.clinet.XAck(ctx, r.stream, r.group, msg.ID).Result()
 				if err != nil {
-					logger.Log.Error(
+					logger.FromContext(ctx).Error(
 						"failed to acknowledge message",
 						zap.String("message_id", msg.ID),
 						zap.Error(err),
@@ -103,7 +103,7 @@ func (r *RedisConsumer) Start(ctx context.Context, processor stream.Processor) e
 
 				r.metrics.MessagesAcknowledged.Inc()
 
-				logger.Log.Debug(
+				logger.FromContext(ctx).Debug(
 					"message acknowledged",
 					zap.String("message_id", msg.ID),
 					zap.Int64("acked", acked),

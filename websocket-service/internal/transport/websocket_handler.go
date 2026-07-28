@@ -63,7 +63,7 @@ func (w *WebSocketHandler) Handler(c *gin.Context) {
 	}()
 
 	if err := w.hub.SendToClient(client.ID, []byte("Welcome to EDNS!")); err != nil {
-		logger.Log.Info("Failed to send welcome message")
+		logger.FromContext(c.Request.Context()).Info("Failed to send welcome message")
 		return
 	}
 
@@ -73,7 +73,7 @@ func (w *WebSocketHandler) Handler(c *gin.Context) {
 			break
 		}
 
-		logger.Log.Info(
+		logger.FromContext(c.Request.Context()).Info(
 			"message info",
 			zap.Int("message_type", msgType),
 			zap.String("buff", string(buff)),

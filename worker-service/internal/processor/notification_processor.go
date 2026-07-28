@@ -76,7 +76,7 @@ func (p *NotificationProcessor) Process(
 		return stream.ProcessResult{}, errors.New("invalid payload: missing notification_id")
 	}
 
-	logger.Log.Info(
+	logger.FromContext(ctx).Info(
 		"Processing notification",
 		zap.String("notification_id", notificationID),
 	)
@@ -209,7 +209,7 @@ func (p *NotificationProcessor) Process(
 
 			p.metrics.DeliveryRetries.Inc()
 
-			logger.Log.Warn(
+			logger.FromContext(ctx).Warn(
 				"Delivery failed",
 				zap.String("delivery_id", delivery.ID.String()),
 				zap.Int("retry_count", retryCount),

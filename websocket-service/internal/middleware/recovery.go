@@ -11,7 +11,7 @@ import (
 func Recovery() gin.HandlerFunc {
 	return gin.CustomRecovery(func(c *gin.Context, recovered any) {
 
-		logger.Log.Error(
+		logger.FromContext(c.Request.Context()).Error(
 			"panic recovered",
 			zap.Any("panic", recovered),
 			zap.String("method", c.Request.Method),

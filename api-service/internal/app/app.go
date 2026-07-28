@@ -46,8 +46,12 @@ func NewApp(cfg *config.Config, db *pgxpool.Pool, redisClient *redis.Client, met
 	// Router
 	r := gin.New()
 
-	//middleware
-	r.Use(middleware.Recovery(), middleware.Logger(), middleware.Metrics(metrics))
+	r.Use(
+		middleware.RequestID(),
+		middleware.Logger(),
+		middleware.Recovery(),
+		middleware.Metrics(metrics),
+	)
 
 	api := r.Group("/api")
 
