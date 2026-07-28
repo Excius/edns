@@ -5,6 +5,9 @@ DB_URL=postgres://admin:admin@localhost:5432/notifications?sslmode=disable
 run-api:
 	go run api-service/cmd/server/main.go
 
+run-worker:
+	go run worker-service/cmd/worker/main.go
+
 build-api:
 	go build -o bin/$(APP_NAME) api-service/cmd/server/main.go
 

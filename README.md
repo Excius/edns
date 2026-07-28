@@ -1,219 +1,122 @@
+# Event Driven Notification System (EDNS v1.0.0)
 
-# Event Driven Notification System (EDNS)
+A production-grade event-driven notification system built with Go that demonstrates asynchronous processing, reliable message delivery, real-time notifications, and a scalable microservice architecture.
 
-A production-grade notification system built with Go that demonstrates modern backend architecture, event-driven processing, distributed workers, reliable message delivery, and real-time notifications.
-
-The project is designed with scalability and fault tolerance in mind by separating responsibilities into independent services communicating through Redis Streams and Redis Pub/Sub.
-
----
-
-# 📋 Table of Contents
-
-* High-Level Architecture
-* Key Features
-* Development Phases
-* Project Structure
-* Tech Stack
-* Getting Started
-* System Design Concepts
+The system is built around independent services communicating through Redis Streams and Redis Pub/Sub, making it easy to extend with additional notification channels.
 
 ---
 
-# High-Level Architecture
+# Table of Contents
 
-```
-                         Client
-                            │
-          ┌─────────────────┴─────────────────┐
-          │                                   │
-          ▼                                   ▼
-      REST API                         WebSocket Client
-          │                                   ▲
-          ▼                                   │
-     API Service                    WebSocket Service
-          │                                   ▲
-          │ Redis Streams                     │ Redis Pub/Sub
-          ▼                                   │
-      Worker Service ─────────────────────────┘
-          │
-          ▼
-      PostgreSQL
-```
+- Overview
+- Architecture
+- Notification Flow
+- Features
+- Project Structure
+- Tech Stack
+- Running the Project
+- Reliability & Observability
+- Future Improvements
 
 ---
 
-# System Flow
+# Overview
 
-1. Client sends a notification request through the REST API.
-2. API validates the request and stores notification data in PostgreSQL.
-3. API publishes the notification ID to Redis Streams.
-4. Worker Service consumes the stream using Redis Consumer Groups.
-5. Worker processes every delivery channel.
-6. WebSocket deliveries are published to Redis Pub/Sub.
-7. WebSocket Service delivers notifications to all active user connections.
-8. Failed deliveries are retried automatically and eventually moved to the Dead Letter Queue.
+EDNS is composed of three independent services:
 
----
+- API Service
+- Worker Service
+- WebSocket Service
 
-# Key Features
-
-* ✅ REST API
-* ✅ PostgreSQL Persistence
-* ✅ Event Driven Architecture
-* ✅ Redis Streams
-* ✅ Redis Consumer Groups
-* ✅ Reliable Message ACK
-* ✅ Retry Logic
-* ✅ Dead Letter Queue (DLQ)
-* ✅ Pending Message Recovery (XAUTOCLAIM)
-* ✅ Multiple Worker Support
-* ✅ Dedicated WebSocket Service
-* ✅ Redis Pub/Sub
-* ✅ Multiple Active Sessions Per User
-* ✅ Graceful Shutdown
-* ✅ Structured Logging
+Notifications are created through the REST API, processed asynchronously by workers, and delivered through multiple notification channels.
 
 ---
 
-# Development Phases
+# Architecture
 
-## ✅ Phase 1 - Core Backend
-
-Completed
-
-Features:
-
-* PostgreSQL integration
-* Database migrations
-* Repository layer
-* Service layer
-* REST APIs
-* Configuration management
-* Structured logging
-* Docker environment
-
----
-
-## ✅ Phase 2 - Event Driven Processing
-
-Completed
-
-Features:
-
-* Redis Streams
-* Queue Publisher
-* Worker Service
-* Notification Processor
-* Delivery Processing
-* Status Transitions
-* Graceful Shutdown
-
-Architecture:
-
-```
-API Service
-      │
-      ▼
-Redis Streams
-      │
-      ▼
-Worker Service
+```text
+                Client
+                  │
+                  ▼
+            API Service
+                  │
+        PostgreSQL + Redis Streams
+                  │
+                  ▼
+           Worker Service
+           │             │
+           ▼             ▼
+      SMTP Email   Redis Pub/Sub
+                         │
+                         ▼
+                 WebSocket Service
+                         │
+                         ▼
+                 Connected Clients
 ```
 
 ---
 
-## ✅ Phase 3 - Reliable Queue Processing
+# Notification Flow
 
-Completed
-
-Features:
-
-* Redis Consumer Groups
-* Message ACK
-* Retry Count
-* Dead Letter Queue
-* Pending Message Recovery
-* Worker Recovery
-* XAUTOCLAIM Recovery
-
-Goals Achieved:
-
-* Prevent duplicate processing
-* Prevent message loss
-* Fault tolerant worker recovery
+1. Client creates a notification through the REST API.
+2. API stores notification data in PostgreSQL.
+3. Notification ID is published to Redis Streams.
+4. Worker consumes the message using Redis Consumer Groups.
+5. Worker processes each delivery channel.
+6. Email notifications are sent through SMTP.
+7. WebSocket notifications are published through Redis Pub/Sub.
+8. WebSocket Service pushes notifications to all connected user sessions.
+9. Failed deliveries are retried and eventually moved to the Dead Letter Queue (DLQ).
 
 ---
 
-## ✅ Phase 4 - Real-Time Delivery
+# Features
 
-Completed
+### Core
 
-Features:
+- REST API
+- PostgreSQL Persistence
+- Repository-Service Architecture
+- Configuration Management
+- Docker & Docker Compose
 
-* Dedicated WebSocket Service
-* Connection Hub
-* User Session Tracking
-* Multiple Active Connections
-* Redis Pub/Sub
-* Real-Time Notification Push
+### Event Processing
 
-Architecture:
+- Redis Streams
+- Redis Consumer Groups
+- Reliable Message Acknowledgement
+- Automatic Retry Logic
+- Dead Letter Queue (DLQ)
+- Pending Message Recovery (`XAUTOCLAIM`)
+- Multiple Worker Support
 
-```
-Worker Service
-       │
-Redis Pub/Sub
-       │
-       ▼
-WebSocket Service
-       │
-       ▼
-Connected Clients
-```
+### Notification Channels
 
----
+- Email Notifications (SMTP)
+- WebSocket Notifications
+- Redis Pub/Sub
+- Multiple Active Connections Per User
 
-## 🚧 Phase 5 - Email Delivery
+### Observability
 
-Planned
+- Structured Logging (Zap)
+- Health Checks
+- Readiness Checks
+- Prometheus Metrics
 
-Features:
+### Reliability
 
-* SMTP Integration
-* Email Templates
-* Delivery Tracking
-
----
-
-## ⏳ Phase 6 - Observability
-
-Planned
-
-Features:
-
-* Prometheus Metrics
-* Grafana Dashboard
-* Health Checks
-* Distributed Logging
+- Graceful Shutdown
+- Fault Tolerant Workers
+- Delivery Status Tracking
+- Notification Status Synchronization
 
 ---
 
-## ⏳ Phase 7 - Scaling
+# Project Structure
 
-Planned
-
-Features:
-
-* Multiple Worker Instances
-* Horizontal Scaling
-* Distributed Processing
-* High Availability
-
----
-
-# Current Project Structure
-
-```
+```text
 api-service/
 worker-service/
 websocket-service/
@@ -223,12 +126,13 @@ internal/
 ├── events/
 ├── logger/
 ├── models/
-├── normalize/
-├── queue/
-└── repository/
+├── observability/
+├── repository/
+├── stream/
+└── validation/
 
 configs/
-docs/
+deploy/
 migrations/
 ```
 
@@ -236,101 +140,118 @@ migrations/
 
 # Tech Stack
 
-### Language
+**Language**
 
-* Go
+- Go
 
-### Web Framework
+**Framework**
 
-* Gin
+- Gin
 
-### Database
+**Database**
 
-* PostgreSQL
-* pgx
+- PostgreSQL
+- pgx
 
-### Messaging
+**Messaging**
 
-* Redis Streams
-* Redis Pub/Sub
+- Redis Streams
+- Redis Pub/Sub
 
-### Real-Time Communication
+**Real-Time Communication**
 
-* Gorilla WebSocket
+- Gorilla WebSocket
 
-### Logging
+**Email**
 
-* Uber Zap
+- SMTP
+- Mailpit
 
-### Containerization
+**Observability**
 
-* Docker
-* Docker Compose
+- Prometheus
+- Grafana
+- Zap Logger
 
----
+**Containerization**
 
-# Current System Architecture
-
-```
-REST API
-    │
-    ▼
-PostgreSQL
-    │
-    ▼
-Redis Streams
-    │
-    ▼
-Worker Service
-    │
-    ├─────────────── Email (Phase 5)
-    │
-    └───────────────► Redis Pub/Sub
-                            │
-                            ▼
-                  WebSocket Service
-                            │
-                            ▼
-                  Connected Clients
-```
+- Docker
+- Docker Compose
 
 ---
 
-# Reliability Features
+# Running the Project
 
-* Redis Consumer Groups
-* Message Acknowledgement
-* Pending Message Recovery
-* Retry Count Tracking
-* Dead Letter Queue
-* Graceful Shutdown
-* Idempotent Processing
+Production
+
+```bash
+make docker-up-prod
+```
+
+Development
+
+```bash
+make docker-up-dev
+```
+
+Available services:
+
+| Service    | Address                    |
+| ---------- | -------------------------- |
+| API        | http://localhost:8080      |
+| Worker     | http://localhost:8081      |
+| WebSocket  | ws://localhost:8082/api/ws |
+| Mailpit    | http://localhost:8025      |
+| Prometheus | http://localhost:9090      |
+| Grafana    | http://localhost:3001      |
+
+---
+
+# Reliability & Observability
+
+### Reliability
+
+- Redis Consumer Groups
+- Automatic Retries
+- Dead Letter Queue
+- Pending Message Recovery
+- Graceful Shutdown
+- Multiple Worker Support
+
+### Observability
+
+- Structured Logging
+- Health Endpoint
+- Readiness Endpoint
+- Prometheus Metrics
+
+---
+
+# System Design Concepts
+
+- Event-Driven Architecture
+- Producer-Consumer Pattern
+- Repository Pattern
+- Service Layer
+- Distributed Workers
+- Redis Streams
+- Redis Consumer Groups
+- Redis Pub/Sub
+- Dead Letter Queue
+- Retry Mechanism
+- WebSocket Connection Management
+- Fault Tolerance
+- Horizontal Scalability
 
 ---
 
 # Future Improvements
 
-* SMTP Email Delivery
-* Metrics & Monitoring
-* Horizontal Scaling
-* Authentication
-* Rate Limiting
-* Kubernetes Deployment
-
----
-
-# System Design Concepts Demonstrated
-
-* Event-Driven Architecture
-* Distributed Workers
-* Producer-Consumer Pattern
-* Redis Streams
-* Redis Consumer Groups
-* Redis Pub/Sub
-* Retry Mechanisms
-* Dead Letter Queue
-* Real-Time Notifications
-* WebSocket Connection Management
-* Graceful Shutdown
-* Fault Tolerance
-* Horizontal Scalability
+- Unit & Integration Tests
+- Grafana Dashboards
+- OpenTelemetry Tracing
+- CI/CD Pipeline
+- Kubernetes Deployment
+- Authentication & Authorization
+- Rate Limiting
+- Additional Notification Channels

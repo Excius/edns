@@ -19,7 +19,7 @@ services:
     working_dir: /app/worker-service
     command: air
     ports:
-      - "8180-8181:8081"
+      - "8081:8081"
 
   websocket:
     build:
