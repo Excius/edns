@@ -24,6 +24,9 @@ func LoadConfig() *Config {
 		Server: ServerConfig{
 			Port: viper.GetString("server.port"),
 		},
+		WorkerServer: WorkerConfig{
+			Port: viper.GetString("worker_server.port"),
+		},
 		WSServer: WSServerConfig{
 			Port: viper.GetString("ws_server.port"),
 		},

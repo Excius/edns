@@ -1,8 +1,11 @@
 server:
   port: 8080
 
-ws_server:
+worker_server:
   port: 8081
+
+ws_server:
+  port: 8082
 
 db:
   url: postgresql://admin:admin@postgres:5432/notifications

@@ -1,15 +1,20 @@
 package config
 
 type Config struct {
-	Server   ServerConfig
-	WSServer WSServerConfig
-	DB       DBConfig
-	Redis    RedisConfig
-	SMTP     SMTPConfig
-	App      App
+	Server       ServerConfig
+	WorkerServer WorkerConfig
+	WSServer     WSServerConfig
+	DB           DBConfig
+	Redis        RedisConfig
+	SMTP         SMTPConfig
+	App          App
 }
 
 type ServerConfig struct {
+	Port string
+}
+
+type WorkerConfig struct {
 	Port string
 }
 

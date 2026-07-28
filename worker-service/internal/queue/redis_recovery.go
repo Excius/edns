@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/excius/edns/internal/logger"
+	"github.com/excius/edns/internal/stream"
+	"github.com/excius/edns/worker-service/internal/metrics"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -17,6 +19,7 @@ type RedisRecovery struct {
 	messageCount     int64
 	recoveryInterval int
 	recoveryIdleTime int
+	metrics          *metrics.RecoveryMetrics
 }
 
 func NewRedisRecovery(
@@ -27,6 +30,7 @@ func NewRedisRecovery(
 	messageCount int64,
 	recoveryInterval int,
 	recoveryIdleTime int,
+	metrics *metrics.RecoveryMetrics,
 ) *RedisRecovery {
 	return &RedisRecovery{
 		client:           client,
@@ -36,10 +40,11 @@ func NewRedisRecovery(
 		messageCount:     messageCount,
 		recoveryInterval: recoveryInterval, // after what duration recovery runs
 		recoveryIdleTime: recoveryIdleTime, // how old msg needs to be processed
+		metrics:          metrics,
 	}
 }
 
-func (r *RedisRecovery) Start(ctx context.Context, processor Processor) error {
+func (r *RedisRecovery) Start(ctx context.Context, processor stream.Processor) error {
 
 	// timeout in which the recovery starts
 	ticker := time.NewTicker(time.Duration(r.recoveryInterval) * time.Second)
@@ -52,6 +57,8 @@ func (r *RedisRecovery) Start(ctx context.Context, processor Processor) error {
 			return nil
 
 		case <-ticker.C:
+
+			r.metrics.RecoveryScans.Inc()
 
 			cursor := "0-0"
 
@@ -76,6 +83,7 @@ func (r *RedisRecovery) Start(ctx context.Context, processor Processor) error {
 						Start:    cursor,
 					}).Result()
 				if err != nil {
+					r.metrics.RecoveryErrors.Inc()
 					logger.Log.Error(
 						"XAUTOCLAIM failed",
 						zap.Error(err),
@@ -108,7 +116,13 @@ func (r *RedisRecovery) Start(ctx context.Context, processor Processor) error {
 						zap.String("message_id", msg.ID),
 					)
 
+					r.metrics.RecoveredMessages.Inc()
+
+					start := time.Now()
 					result, err := processor.Process(ctx, msg.Values)
+					r.metrics.RecoveryProcessingDuration.Observe(
+						time.Since(start).Seconds(),
+					)
 					if err != nil {
 						logger.Log.Error(
 							"Failed processing message",

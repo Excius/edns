@@ -9,6 +9,6 @@ COPY . .
 
 RUN go build -o ws-worker ./websocket-service/cmd/worker
 
-EXPOSE 8081
+EXPOSE 8082
 
 CMD ["./worker"]

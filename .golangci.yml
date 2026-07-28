@@ -1,26 +1,15 @@
 version: "2"
 
 linters:
-  # 'standard' automatically enables govet, errcheck, staticcheck,
-  # gosimple, unused, and ineffassign.
   default: standard
 
-  # Explicitly opt-in to gocyclo
   enable:
-    - govet
-    - errcheck
-    - staticcheck
-    - unused
-    - ineffassign
     - gocyclo
 
-
-  # In v2, settings must live inside the linters block
   settings:
     gocyclo:
       min-complexity: 15
 
-  # In v2, exclusions also live inside the linters block
   exclusions:
     generated: lax
     paths:

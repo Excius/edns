@@ -9,4 +9,6 @@ COPY . .
 
 RUN go build -o worker ./worker-service/cmd/worker
 
+EXPOSE 8081
+
 CMD ["./worker"]

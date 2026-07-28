@@ -4,9 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/excius/edns/internal/logger"
 	"github.com/excius/edns/websocket-service/internal/client"
+	"github.com/excius/edns/websocket-service/internal/metrics"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 )
 
 type Hub struct {
@@ -15,12 +19,15 @@ type Hub struct {
 	clients map[string]*client.Client
 
 	mu sync.RWMutex
+
+	metrics *metrics.Metrics
 }
 
-func NewHub() *Hub {
+func NewHub(metrics *metrics.Metrics) *Hub {
 	return &Hub{
 		users:   make(map[string]map[string]struct{}),
 		clients: make(map[string]*client.Client),
+		metrics: metrics,
 	}
 }
 
@@ -35,9 +42,9 @@ func (h *Hub) Register(c *client.Client) {
 	}
 	h.users[c.UserID][c.ID] = struct{}{}
 
-	fmt.Println(
-		"Client connected. Total clients:",
-		len(h.clients),
+	logger.Log.Info(
+		"Client connected",
+		zap.Int("total_clients", len(h.clients)),
 	)
 }
 
@@ -59,9 +66,9 @@ func (h *Hub) Unregister(clientID string) {
 		}
 	}
 
-	fmt.Println(
-		"Client disconnected. Total clients:",
-		len(h.clients),
+	logger.Log.Info(
+		"Client diconnected",
+		zap.Int("total_clients", len(h.clients)),
 	)
 }
 
@@ -90,11 +97,12 @@ func (h *Hub) SendToClient(clientID string, message []byte) error {
 	return nil
 }
 
-func (h *Hub) SendToUser(userId string, payload []byte) error {
+func (h *Hub) SendToUser(userID string, payload []byte) error {
+
 	h.mu.RLock()
 
-	clientIDs := make([]string, 0, len(h.users[userId]))
-	for clientID := range h.users[userId] {
+	clientIDs := make([]string, 0, len(h.users[userID]))
+	for clientID := range h.users[userID] {
 		clientIDs = append(clientIDs, clientID)
 	}
 
@@ -106,10 +114,21 @@ func (h *Hub) SendToUser(userId string, payload []byte) error {
 
 		client := h.clients[clientID]
 
+		start := time.Now()
+
 		err := client.Conn.WriteMessage(websocket.TextMessage, payload)
+
+		h.metrics.Delivery.DeliveryDuration.Observe(
+			time.Since(start).Seconds(),
+		)
+
 		if err != nil {
+			h.metrics.Delivery.DeliveryErrors.Inc()
 			sendErr = fmt.Errorf("write failed: %w", err)
+			continue
 		}
+
+		h.metrics.Delivery.MessagesDelivered.Inc()
 	}
 
 	return sendErr

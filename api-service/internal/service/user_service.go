@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/excius/edns/api-service/internal/metrics"
 	"github.com/excius/edns/internal/apperrors"
 	"github.com/excius/edns/internal/models"
 	"github.com/excius/edns/internal/repository"
@@ -14,12 +15,14 @@ import (
 type UserService struct {
 	userRepo         *repository.UserRepository
 	notificationRepo *repository.NotificationRepository
+	metrics          *metrics.Metrics
 }
 
-func NewUserService(userRepo *repository.UserRepository, notificationRepo *repository.NotificationRepository) *UserService {
+func NewUserService(userRepo *repository.UserRepository, notificationRepo *repository.NotificationRepository, metrics *metrics.Metrics) *UserService {
 	return &UserService{
 		userRepo:         userRepo,
 		notificationRepo: notificationRepo,
+		metrics:          metrics,
 	}
 }
 
@@ -73,6 +76,8 @@ func (s *UserService) CreateUser(ctx context.Context, email string) (*models.Use
 	if err != nil {
 		return nil, err
 	}
+
+	s.metrics.Business.UsersCreated.Inc()
 
 	return user, nil
 }

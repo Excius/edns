@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/excius/edns/api-service/internal/app"
+	"github.com/excius/edns/api-service/internal/metrics"
 	"github.com/excius/edns/internal/config"
 	"github.com/excius/edns/internal/logger"
 	"go.uber.org/zap"
@@ -34,7 +35,9 @@ func main() {
 	redisClient := config.NewRedisClient(cfg)
 	defer redisClient.Close()
 
-	application := app.NewApp(cfg, db, redisClient)
+	metrics := metrics.NewMetrics()
+
+	application := app.NewApp(cfg, db, redisClient, metrics)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,

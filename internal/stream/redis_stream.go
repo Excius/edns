@@ -1,4 +1,4 @@
-package queue
+package stream
 
 import (
 	"context"

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/excius/edns/internal/logger"
+	"github.com/excius/edns/websocket-service/internal/metrics"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -12,12 +13,14 @@ import (
 type RedisSubscriber struct {
 	client  *redis.Client
 	channel string
+	metrics *metrics.Metrics
 }
 
-func NewRedisSubscriber(client *redis.Client, channel string) *RedisSubscriber {
+func NewRedisSubscriber(client *redis.Client, channel string, metrics *metrics.Metrics) *RedisSubscriber {
 	return &RedisSubscriber{
 		client:  client,
 		channel: channel,
+		metrics: metrics,
 	}
 }
 
@@ -54,7 +57,10 @@ func (s *RedisSubscriber) Start(ctx context.Context, handler EventHandler) error
 				zap.String("payload", msg.Payload),
 			)
 
+			s.metrics.Subscriber.MessagesReceived.Inc()
+
 			if err := handler.Handle(ctx, []byte(msg.Payload)); err != nil {
+				s.metrics.Subscriber.MessageHandlingErrors.Inc()
 				logger.Log.Error(
 					"message handler failed",
 					zap.Error(err),

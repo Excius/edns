@@ -12,11 +12,15 @@ import (
 
 	"github.com/excius/edns/internal/config"
 	"github.com/excius/edns/internal/logger"
+	"github.com/excius/edns/internal/observability/health"
 	"github.com/excius/edns/websocket-service/internal/handler"
 	"github.com/excius/edns/websocket-service/internal/hub"
+	"github.com/excius/edns/websocket-service/internal/metrics"
+	"github.com/excius/edns/websocket-service/internal/middleware"
 	"github.com/excius/edns/websocket-service/internal/subscriber"
 	"github.com/excius/edns/websocket-service/internal/transport"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
 
@@ -36,14 +40,23 @@ func main() {
 	redisClient := config.NewRedisClient(cfg)
 	defer redisClient.Close()
 
+	// Metrics
+	metrics := metrics.NewMetrics()
+
+	// Health
+	readyHandler := health.NewHandler(
+		health.NewRedisChecker(redisClient),
+	)
+
 	// Dependencies
-	hub := hub.NewHub()
+	hub := hub.NewHub(metrics)
 
 	notificationHandler := handler.NewNotificationHandler(hub)
 
 	redisSubscriber := subscriber.NewRedisSubscriber(
 		redisClient,
 		cfg.Redis.Channel,
+		metrics,
 	)
 
 	// Background workers
@@ -70,11 +83,25 @@ func main() {
 	})
 
 	// HTTP / WebSocket server
-	wsHandler := transport.NewWebSocketHandler(hub)
+	wsHandler := transport.NewWebSocketHandler(hub, metrics)
 
-	router := gin.Default()
+	router := gin.New()
 
-	router.GET("/ws", wsHandler.Handler)
+	router.Use(middleware.Recovery(), middleware.Logger())
+
+	api := router.Group("/api")
+
+	api.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	api.GET("/ready", func(c *gin.Context) {
+		readyHandler.Ready(c)
+	})
+
+	api.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	api.GET("/ws", wsHandler.Handler)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.WSServer.Port,

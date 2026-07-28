@@ -5,10 +5,11 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/excius/edns/api-service/internal/metrics"
 	"github.com/excius/edns/internal/apperrors"
 	"github.com/excius/edns/internal/models"
-	"github.com/excius/edns/internal/queue"
 	"github.com/excius/edns/internal/repository"
+	"github.com/excius/edns/internal/stream"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -17,20 +18,23 @@ type NotificationService struct {
 	userRepo         *repository.UserRepository
 	notificationRepo *repository.NotificationRepository
 	deliveryRepo     *repository.NotificationDeliveryRepository
-	queue            *queue.RedisStream
+	queue            *stream.RedisStream
+	metrics          *metrics.Metrics
 }
 
 func NewNotificationService(
 	userRepo *repository.UserRepository,
 	notificationRepo *repository.NotificationRepository,
 	deliveryRepo *repository.NotificationDeliveryRepository,
-	queue *queue.RedisStream,
+	queue *stream.RedisStream,
+	metrics *metrics.Metrics,
 ) *NotificationService {
 	return &NotificationService{
 		userRepo:         userRepo,
 		notificationRepo: notificationRepo,
 		deliveryRepo:     deliveryRepo,
 		queue:            queue,
+		metrics:          metrics,
 	}
 }
 
@@ -116,6 +120,8 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 	if err != nil {
 		return nil, err
 	}
+
+	s.metrics.Business.NotificationsCreated.Inc()
 
 	return notification, nil
 }
