@@ -5,41 +5,57 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/excius/edns/api-service/internal/metrics"
+	"github.com/excius/edns/internal/apperrors"
 	"github.com/excius/edns/internal/models"
-	"github.com/excius/edns/internal/queue"
 	"github.com/excius/edns/internal/repository"
+	"github.com/excius/edns/internal/stream"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
-
-var ErrInvChan = errors.New("service: invalid channel")
 
 type NotificationService struct {
 	userRepo         *repository.UserRepository
 	notificationRepo *repository.NotificationRepository
 	deliveryRepo     *repository.NotificationDeliveryRepository
-	queue            *queue.RedisStream
+	queue            *stream.RedisStream
+	metrics          *metrics.Metrics
 }
 
 func NewNotificationService(
 	userRepo *repository.UserRepository,
 	notificationRepo *repository.NotificationRepository,
 	deliveryRepo *repository.NotificationDeliveryRepository,
-	queue *queue.RedisStream,
+	queue *stream.RedisStream,
+	metrics *metrics.Metrics,
 ) *NotificationService {
 	return &NotificationService{
 		userRepo:         userRepo,
 		notificationRepo: notificationRepo,
 		deliveryRepo:     deliveryRepo,
 		queue:            queue,
+		metrics:          metrics,
 	}
 }
 
 func (s *NotificationService) GetNotificationByID(ctx context.Context, id uuid.UUID) (*models.Notification, error) {
-	return s.notificationRepo.GetNotificationByID(ctx, id)
+	notification, err := s.notificationRepo.GetNotificationByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apperrors.ErrDeliveryNotFound
+		}
+		return nil, err
+	}
+	return notification, nil
 }
 
 func (s *NotificationService) GetDeliveriesByNotificatoinID(ctx context.Context, notificationID uuid.UUID) ([]models.NotificationDelivery, error) {
-	return s.deliveryRepo.GetDeliveriesByNotificatoinID(ctx, notificationID)
+	notifications, err := s.deliveryRepo.GetDeliveriesByNotificatoinID(ctx, notificationID)
+	if err != nil {
+		return nil, err
+	}
+
+	return notifications, nil
 }
 
 func (s *NotificationService) CreateNotification(ctx context.Context, userID uuid.UUID, title string, message string, channels []string) (*models.Notification, error) {
@@ -58,7 +74,7 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 		ch = strings.ToLower(strings.TrimSpace(ch))
 
 		if !models.IsValidChannel(ch) {
-			return nil, ErrInvChan
+			return nil, apperrors.ErrInvalidChannel
 		}
 
 		if _, exists := seen[ch]; !exists {
@@ -104,6 +120,8 @@ func (s *NotificationService) CreateNotification(ctx context.Context, userID uui
 	if err != nil {
 		return nil, err
 	}
+
+	s.metrics.Business.NotificationsCreated.Inc()
 
 	return notification, nil
 }

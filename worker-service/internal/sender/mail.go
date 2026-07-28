@@ -56,7 +56,7 @@ func (e *EmailSender) Send(ctx context.Context, event events.NotificationEvent) 
 		return fmt.Errorf("failed to send mail: %w", err)
 	}
 
-	logger.Log.Info(
+	logger.FromContext(ctx).Info(
 		"Email sent",
 		zap.String("notification_id", event.NotificationID),
 	)

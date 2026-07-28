@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -11,9 +12,12 @@ import (
 	"github.com/excius/edns/internal/config"
 	"github.com/excius/edns/internal/logger"
 	"github.com/excius/edns/internal/models"
-	"github.com/excius/edns/internal/queue"
 	"github.com/excius/edns/internal/repository"
+	"github.com/excius/edns/internal/stream"
+	"github.com/excius/edns/worker-service/internal/app"
+	"github.com/excius/edns/worker-service/internal/metrics"
 	"github.com/excius/edns/worker-service/internal/processor"
+	"github.com/excius/edns/worker-service/internal/queue"
 	"github.com/excius/edns/worker-service/internal/sender"
 	"go.uber.org/zap"
 )
@@ -44,6 +48,15 @@ func main() {
 	redisClient := config.NewRedisClient(cfg)
 	defer redisClient.Close()
 
+	metrics := metrics.NewMetrics()
+
+	application := app.NewApp(db, redisClient, metrics)
+
+	server := &http.Server{
+		Addr:    ":" + cfg.WorkerServer.Port,
+		Handler: application.Router,
+	}
+
 	hostname, _ := os.Hostname()
 	consumerName := hostname
 
@@ -52,17 +65,20 @@ func main() {
 		cfg.Redis.Stream,
 		cfg.Redis.Group,
 		consumerName,
+		&metrics.Consumer,
 	)
 	revovery := queue.NewRedisRecovery(
 		redisClient,
 		cfg.Redis.Stream,
 		cfg.Redis.Group,
 		consumerName,
+		cfg.Redis.RecoveryMessageCount,
 		cfg.Redis.RecoveryInterval,
 		cfg.Redis.RecoveryIdleTime,
+		&metrics.Recovery,
 	)
 
-	dlqPublisher := queue.NewRedisDLQStream(
+	dlqPublisher := stream.NewRedisDLQStream(
 		redisClient,
 		cfg.Redis.DlqStream,
 	)
@@ -82,6 +98,7 @@ func main() {
 		deliveryRepo,
 		dlqPublisher,
 		senders,
+		&metrics.Processor,
 	)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -99,6 +116,18 @@ func main() {
 		"Consumer group ready",
 		zap.String("group", cfg.Redis.Group),
 	)
+
+	wg.Go(func() {
+		logger.Log.Info("Starting worker server", zap.String("port", cfg.WorkerServer.Port))
+
+		if err := server.ListenAndServe(); err != nil &&
+			!errors.Is(err, http.ErrServerClosed) {
+			logger.Log.Fatal(
+				"Worker server failed",
+				zap.Error(err),
+			)
+		}
+	})
 
 	wg.Go(func() {
 		logger.Log.Info("Worker service is running...")

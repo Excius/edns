@@ -1,16 +1,21 @@
-run:
-  timeout: 5m
+version: "2"
 
 linters:
+  default: standard
+
   enable:
-    - govet
-    - errcheck
-    - staticcheck
-    - gosimple
-    - unused
-    - ineffassign
     - gocyclo
 
-linters-settings:
-  gocyclo:
-    min-complexity: 15
+  settings:
+    gocyclo:
+      min-complexity: 15
+
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+    presets:
+      - common-false-positives

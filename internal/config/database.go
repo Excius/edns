@@ -12,7 +12,7 @@ func NewPostgresPool(cfg *Config) (*pgxpool.Pool, error) {
 
 	config, err := pgxpool.ParseConfig(cfg.DB.URL)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse database URL: %w", err)
+		return nil, fmt.Errorf("unable to parse database URL: %w", err)
 	}
 
 	config.MaxConns = cfg.DB.MAXConns
@@ -20,11 +20,11 @@ func NewPostgresPool(cfg *Config) (*pgxpool.Pool, error) {
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create connection pool: %w", err)
+		return nil, fmt.Errorf("unable to create connection pool: %w", err)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("Unable to connect to database: %w", err)
+		return nil, fmt.Errorf("unable to connect to database: %w", err)
 	}
 
 	return pool, nil

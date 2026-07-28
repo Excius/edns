@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/excius/edns/internal/events"
 	"github.com/excius/edns/internal/logger"
 	"github.com/excius/edns/internal/models"
-	"github.com/excius/edns/internal/queue"
 	"github.com/excius/edns/internal/repository"
+	"github.com/excius/edns/internal/stream"
+	"github.com/excius/edns/worker-service/internal/metrics"
 	"github.com/excius/edns/worker-service/internal/sender"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -23,17 +25,20 @@ type NotificationProcessor struct {
 	userRepo         *repository.UserRepository
 	notificationRepo *repository.NotificationRepository
 	deliveryRepo     *repository.NotificationDeliveryRepository
-	dlqPublisher     *queue.RedisDLQ
+	dlqPublisher     *stream.RedisDLQ
 
 	senders map[string]sender.Sender
+
+	metrics *metrics.ProcessorMetrics
 }
 
 func NewNotificationProcessor(
 	userRepo *repository.UserRepository,
 	notificationRepo *repository.NotificationRepository,
 	deliveryRepo *repository.NotificationDeliveryRepository,
-	dlqPublisher *queue.RedisDLQ,
+	dlqPublisher *stream.RedisDLQ,
 	senders map[string]sender.Sender,
+	metrics *metrics.ProcessorMetrics,
 ) *NotificationProcessor {
 	return &NotificationProcessor{
 		userRepo:         userRepo,
@@ -41,29 +46,44 @@ func NewNotificationProcessor(
 		deliveryRepo:     deliveryRepo,
 		dlqPublisher:     dlqPublisher,
 		senders:          senders,
+		metrics:          metrics,
 	}
 }
 
-// TODO: Add idempotency protection when real email/websocket
-// delivery is implemented. Redis Streams provide at-least-once delivery.
+// TODO:
+// Prevent duplicate deliveries.
+// Redis Streams provide at-least-once delivery, so retries may
+// invoke the sender multiple times. Persist a delivery identifier
+// (or external message ID) and skip sending if the delivery has
+// already been completed.
 func (p *NotificationProcessor) Process(
 	ctx context.Context,
 	payload map[string]any,
-) (queue.ProcessResult, error) {
+) (stream.ProcessResult, error) {
+
+	start := time.Now()
+
+	defer func() {
+		p.metrics.NotificationProcessingDuration.Observe(
+			time.Since(start).Seconds(),
+		)
+	}()
+
+	p.metrics.NotificationsProcessed.Inc()
 
 	notificationID, ok := payload["notification_id"].(string)
 	if !ok {
-		return queue.ProcessResult{}, errors.New("invalid payload: missing notification_id")
+		return stream.ProcessResult{}, errors.New("invalid payload: missing notification_id")
 	}
 
-	logger.Log.Info(
+	logger.FromContext(ctx).Info(
 		"Processing notification",
 		zap.String("notification_id", notificationID),
 	)
 
 	parsedNotiID, err := uuid.Parse(notificationID)
 	if err != nil {
-		return queue.ProcessResult{}, fmt.Errorf(
+		return stream.ProcessResult{}, fmt.Errorf(
 			"invalid notification id %s: %w",
 			notificationID,
 			err,
@@ -72,28 +92,17 @@ func (p *NotificationProcessor) Process(
 
 	deliveries, err := p.deliveryRepo.GetByNotificationID(ctx, parsedNotiID)
 	if err != nil {
-		return queue.ProcessResult{}, fmt.Errorf(
+		return stream.ProcessResult{}, fmt.Errorf(
 			"fetch deliveries for notification %s: %w",
 			parsedNotiID,
 			err,
 		)
 	}
 
-	// TODO: can make a join request to get data in one request rather then 3 simulateneous requests
-
-	notification, err := p.notificationRepo.GetNotificationByID(ctx, parsedNotiID)
+	notificationContext, err := p.notificationRepo.GetNotificationWithUser(ctx, parsedNotiID)
 	if err != nil {
-		return queue.ProcessResult{}, fmt.Errorf(
-			"fetch notification for notification %s: %w",
-			parsedNotiID,
-			err,
-		)
-	}
-
-	user, err := p.userRepo.GetUserByID(ctx, notification.UserID)
-	if err != nil {
-		return queue.ProcessResult{}, fmt.Errorf(
-			"fetch user details for notification %s: %w",
+		return stream.ProcessResult{}, fmt.Errorf(
+			"fetch notification context for notification %s: %w",
 			parsedNotiID,
 			err,
 		)
@@ -101,10 +110,10 @@ func (p *NotificationProcessor) Process(
 
 	event := events.NotificationEvent{
 		NotificationID: parsedNotiID.String(),
-		UserID:         notification.UserID.String(),
-		Email:          user.Email,
-		Title:          notification.Title,
-		Message:        notification.Message,
+		UserID:         notificationContext.User.ID.String(),
+		Email:          notificationContext.User.Email,
+		Title:          notificationContext.Notfication.Title,
+		Message:        notificationContext.Notfication.Message,
 	}
 
 	for _, delivery := range deliveries {
@@ -115,6 +124,8 @@ func (p *NotificationProcessor) Process(
 			continue
 		}
 
+		p.metrics.DeliveriesProcessed.Inc()
+
 		// Retry budget exhausted
 		if delivery.RetryCount >= maxRetries {
 
@@ -123,7 +134,7 @@ func (p *NotificationProcessor) Process(
 				delivery.ID,
 				models.StatusFailed,
 			); err != nil {
-				return queue.ProcessResult{}, fmt.Errorf(
+				return stream.ProcessResult{}, fmt.Errorf(
 					"mark delivery %s failed: %w",
 					delivery.ID,
 					err,
@@ -139,12 +150,14 @@ func (p *NotificationProcessor) Process(
 			})
 
 			if err != nil {
-				return queue.ProcessResult{}, fmt.Errorf(
+				return stream.ProcessResult{}, fmt.Errorf(
 					"publish delivery %s to dlq: %w",
 					delivery.ID,
 					err,
 				)
 			}
+
+			p.metrics.DLQMessages.Inc()
 
 			continue
 		}
@@ -154,7 +167,7 @@ func (p *NotificationProcessor) Process(
 			delivery.ID,
 			models.StatusProcessing,
 		); err != nil {
-			return queue.ProcessResult{}, fmt.Errorf(
+			return stream.ProcessResult{}, fmt.Errorf(
 				"mark delivery %s processing: %w",
 				delivery.ID,
 				err,
@@ -170,7 +183,14 @@ func (p *NotificationProcessor) Process(
 				delivery.Channel,
 			)
 		} else {
+
+			deliveryStart := time.Now()
+
 			deliveryErr = deliverySender.Send(ctx, event)
+
+			p.metrics.DeliveryDuration.Observe(
+				time.Since(deliveryStart).Seconds(),
+			)
 		}
 
 		if deliveryErr != nil {
@@ -180,14 +200,16 @@ func (p *NotificationProcessor) Process(
 				delivery.ID,
 			)
 			if err != nil {
-				return queue.ProcessResult{}, fmt.Errorf(
+				return stream.ProcessResult{}, fmt.Errorf(
 					"increment retry count for delivery %s: %w",
 					delivery.ID,
 					err,
 				)
 			}
 
-			logger.Log.Warn(
+			p.metrics.DeliveryRetries.Inc()
+
+			logger.FromContext(ctx).Warn(
 				"Delivery failed",
 				zap.String("delivery_id", delivery.ID.String()),
 				zap.Int("retry_count", retryCount),
@@ -196,6 +218,7 @@ func (p *NotificationProcessor) Process(
 
 			status := models.StatusPending
 			if retryCount >= maxRetries {
+				p.metrics.DeliveriesFailed.Inc()
 				status = models.StatusFailed
 			}
 
@@ -204,7 +227,7 @@ func (p *NotificationProcessor) Process(
 				delivery.ID,
 				status,
 			); err != nil {
-				return queue.ProcessResult{}, fmt.Errorf(
+				return stream.ProcessResult{}, fmt.Errorf(
 					"mark delivery %s pending: %w",
 					delivery.ID,
 					err,
@@ -219,31 +242,44 @@ func (p *NotificationProcessor) Process(
 			delivery.ID,
 			models.StatusCompleted,
 		); err != nil {
-			return queue.ProcessResult{}, fmt.Errorf(
+			return stream.ProcessResult{}, fmt.Errorf(
 				"mark delivery %s completed: %w",
 				delivery.ID,
 				err,
 			)
 		}
+
+		p.metrics.DeliveriesCompleted.Inc()
 	}
 
-	// TODO: Need to add Processing timeout recvery later in this
+	// TODO:
+	// Recover deliveries stuck in StatusProcessing for longer than the configured timeout.
+	// Periodically scan the database, mark stale deliveries back to StatusPending,
+	// increment the retry count, and let Redis Stream recovery retry them.
 	status, err := p.refreshNotificationStatus(
 		ctx,
 		parsedNotiID,
 	)
 	if err != nil {
-		return queue.ProcessResult{}, err
+		return stream.ProcessResult{}, err
 	}
 
+	// Sending the reuqest to retry state
 	if status != models.StatusCompleted && status != models.StatusFailed {
-		return queue.ProcessResult{
+		return stream.ProcessResult{
 			Ack: false,
 		}, nil
 	}
 
 	// For both failed and complete status we are pasing nil which will make ack for the message
-	return queue.ProcessResult{
+
+	if status == models.StatusCompleted {
+		p.metrics.NotificationsCompleted.Inc()
+	} else {
+		p.metrics.NotificationsFailed.Inc()
+	}
+
+	return stream.ProcessResult{
 		Ack: true,
 	}, nil
 }

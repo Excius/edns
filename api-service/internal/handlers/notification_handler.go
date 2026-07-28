@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/excius/edns/api-service/internal/dto"
+	"github.com/excius/edns/api-service/internal/httpx"
 	"github.com/excius/edns/api-service/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -31,7 +32,7 @@ func (n *NotificationHandler) GetNotificationByID(c *gin.Context) {
 
 	notification, err := n.notificationService.GetNotificationByID(c.Request.Context(), notificationID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.HandleError(c, err)
 		return
 	}
 
@@ -49,7 +50,7 @@ func (n *NotificationHandler) GetDeliveriesByNotificationID(c *gin.Context) {
 
 	delivery, err := n.notificationService.GetDeliveriesByNotificatoinID(c.Request.Context(), notificationID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.HandleError(c, err)
 		return
 	}
 
@@ -90,7 +91,7 @@ func (n *NotificationHandler) CreateNotification(c *gin.Context) {
 	notification, err := n.notificationService.CreateNotification(c.Request.Context(), userID, title, message, req.Channels)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.HandleError(c, err)
 		return
 	}
 

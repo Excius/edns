@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/excius/edns/api-service/internal/dto"
+	"github.com/excius/edns/api-service/internal/httpx"
 	"github.com/excius/edns/api-service/internal/service"
 	"github.com/excius/edns/internal/normalize"
 	"github.com/gin-gonic/gin"
@@ -32,7 +33,7 @@ func (n *UserHandler) GetUserByID(c *gin.Context) {
 
 	user, err := n.userService.GetUserByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.HandleError(c, err)
 		return
 	}
 
@@ -52,7 +53,7 @@ func (n *UserHandler) GetUserByEmail(c *gin.Context) {
 
 	user, err := n.userService.GetUserByEmail(c.Request.Context(), email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.HandleError(c, err)
 		return
 	}
 
@@ -70,7 +71,7 @@ func (n *UserHandler) GetUserNotifications(c *gin.Context) {
 
 	notifications, err := n.userService.GetUserNotifications(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.HandleError(c, err)
 		return
 	}
 
@@ -99,7 +100,7 @@ func (n *UserHandler) CreateUser(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.HandleError(c, err)
 		return
 	}
 
