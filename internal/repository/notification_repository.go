@@ -8,6 +8,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type NotificationContext struct {
+	Notfication models.Notification
+	User        models.User
+}
+
 type NotificationRepository struct {
 	db *pgxpool.Pool
 }
@@ -97,4 +102,43 @@ func (r *NotificationRepository) UpdateNotificationStatus(ctx context.Context, i
 	`
 	_, err := r.db.Exec(ctx, query, status, id)
 	return err
+}
+
+func (r *NotificationRepository) GetNotificationWithUser(ctx context.Context, notificationID uuid.UUID) (*NotificationContext, error) {
+	query := `SELECT
+	n.id,
+	n.title,
+	n.message,
+	n.status,
+	n.created_at,
+
+	u.id,
+	u.email,
+	u.created_at
+	FROM notifications n
+	JOIN users u
+	ON u.id = n.user_id
+	WHERE n.id = $1;
+	`
+
+	row := r.db.QueryRow(ctx, query, notificationID)
+
+	var n NotificationContext
+
+	err := row.Scan(
+		&n.Notfication.ID,
+		&n.Notfication.Title,
+		&n.Notfication.Message,
+		&n.Notfication.Status,
+		&n.Notfication.CreatedAt,
+		&n.User.ID,
+		&n.User.Email,
+		&n.User.CreatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &n, nil
+
 }

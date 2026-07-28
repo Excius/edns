@@ -18,6 +18,8 @@ services:
       - .:/app
     working_dir: /app/worker-service
     command: air
+    ports:
+      - "8081:8081"
 
   websocket:
     build:
@@ -28,7 +30,7 @@ services:
     working_dir: /app/websocket-service
     command: air
     ports:
-      - "8081:8081"
+      - "8082:8082"
 
 volumes:
   postgres_data:

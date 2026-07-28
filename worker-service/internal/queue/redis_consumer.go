@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/excius/edns/internal/logger"
+	"github.com/excius/edns/internal/stream"
+	"github.com/excius/edns/worker-service/internal/metrics"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -14,14 +16,16 @@ type RedisConsumer struct {
 	stream       string
 	group        string
 	consumerName string
+	metrics      *metrics.ConsumerMetrics
 }
 
-func NewRedisConsumer(client *redis.Client, stream string, group string, consumerName string) *RedisConsumer {
+func NewRedisConsumer(client *redis.Client, stream string, group string, consumerName string, metrics *metrics.ConsumerMetrics) *RedisConsumer {
 	return &RedisConsumer{
 		clinet:       client,
 		stream:       stream,
 		group:        group,
 		consumerName: consumerName,
+		metrics:      metrics,
 	}
 }
 
@@ -36,7 +40,7 @@ func (r *RedisConsumer) EnsureGroup(ctx context.Context) error {
 	return nil
 }
 
-func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
+func (r *RedisConsumer) Start(ctx context.Context, processor stream.Processor) error {
 
 	for {
 		streams, err := r.clinet.XReadGroup(ctx, &redis.XReadGroupArgs{
@@ -54,6 +58,8 @@ func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
 		for _, stream := range streams {
 			for _, msg := range stream.Messages {
 
+				r.metrics.MessagesReceived.Inc()
+
 				// Before processing each message
 				select {
 				case <-ctx.Done():
@@ -63,7 +69,8 @@ func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
 
 				result, err := processor.Process(ctx, msg.Values)
 				if err != nil {
-					logger.Log.Error(
+					r.metrics.MessageProcessingErrors.Inc()
+					logger.FromContext(ctx).Error(
 						"failed processing message",
 						zap.String("message_id", msg.ID),
 						zap.Error(err),
@@ -74,7 +81,7 @@ func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
 				}
 
 				if !result.Ack {
-					logger.Log.Debug(
+					logger.FromContext(ctx).Debug(
 						"notification still in progress",
 						zap.String("message_id", msg.ID),
 					)
@@ -85,7 +92,7 @@ func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
 
 				acked, err := r.clinet.XAck(ctx, r.stream, r.group, msg.ID).Result()
 				if err != nil {
-					logger.Log.Error(
+					logger.FromContext(ctx).Error(
 						"failed to acknowledge message",
 						zap.String("message_id", msg.ID),
 						zap.Error(err),
@@ -94,7 +101,9 @@ func (r *RedisConsumer) Start(ctx context.Context, processor Processor) error {
 					continue
 				}
 
-				logger.Log.Debug(
+				r.metrics.MessagesAcknowledged.Inc()
+
+				logger.FromContext(ctx).Debug(
 					"message acknowledged",
 					zap.String("message_id", msg.ID),
 					zap.Int64("acked", acked),

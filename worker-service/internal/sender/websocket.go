@@ -34,7 +34,7 @@ func (w *WebSocketSender) Send(ctx context.Context, event events.NotificationEve
 		return fmt.Errorf("publish payload failed: %w", err)
 	}
 
-	logger.Log.Info(
+	logger.FromContext(ctx).Info(
 		"WebSocket message sent",
 		zap.String("notification_id", event.NotificationID),
 	)

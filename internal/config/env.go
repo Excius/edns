@@ -24,6 +24,9 @@ func LoadConfig() *Config {
 		Server: ServerConfig{
 			Port: viper.GetString("server.port"),
 		},
+		WorkerServer: WorkerConfig{
+			Port: viper.GetString("worker_server.port"),
+		},
 		WSServer: WSServerConfig{
 			Port: viper.GetString("ws_server.port"),
 		},
@@ -33,15 +36,16 @@ func LoadConfig() *Config {
 			MINConns: viper.GetInt32("db.min_conns"),
 		},
 		Redis: RedisConfig{
-			Addr:             viper.GetString("redis.addr"),
-			Password:         viper.GetString("redis.password"),
-			DB:               viper.GetInt("redis.db"),
-			Stream:           viper.GetString("redis.stream"),
-			DlqStream:        viper.GetString("redis.dql_stream"),
-			Group:            viper.GetString("redis.group"),
-			RecoveryInterval: viper.GetInt("redis.recovery_interval"),
-			RecoveryIdleTime: viper.GetInt("redis.recovery_idle_time"),
-			Channel:          viper.GetString("redis.channel"),
+			Addr:                 viper.GetString("redis.addr"),
+			Password:             viper.GetString("redis.password"),
+			DB:                   viper.GetInt("redis.db"),
+			Stream:               viper.GetString("redis.stream"),
+			DlqStream:            viper.GetString("redis.dql_stream"),
+			Group:                viper.GetString("redis.group"),
+			RecoveryMessageCount: viper.GetInt64("redis.recovery_message_count"),
+			RecoveryInterval:     viper.GetInt("redis.recovery_interval"),
+			RecoveryIdleTime:     viper.GetInt("redis.recovery_idle_time"),
+			Channel:              viper.GetString("redis.channel"),
 		},
 		SMTP: SMTPConfig{
 			Host:     viper.GetString("smtp.host"),
